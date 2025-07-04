@@ -3,3 +3,5 @@ __pycache__/
 *.log
 venv-insight/
 processed_index.json
+.env
+scanned/
