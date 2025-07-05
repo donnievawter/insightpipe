@@ -4,3 +4,5 @@ poll_interval: 15
 stabilization_interval: 3
 ollama_url: "http://crow.lan:11434/api/generate"
 prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."
+output_dir: "/Volumes/T54T/OneDrive/processed_detections"
+output_mode: copy  # or "move"
