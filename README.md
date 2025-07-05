@@ -129,3 +129,44 @@ keywordPrompt: What keywords would best describe this image? Provide a comma-sep
 
 ---
 
+---
+
+## 🧠 Command-Line Execution
+
+Starting in `v1.4`, InsightPipe supports runtime overrides via command-line flags, making it easy to launch multiple instances, test alternative configs, or integrate with shell workflows.
+
+### 🔧 Available Flags
+
+```bash
+python insightpipe.py [flags]
+
+--config            Path to YAML config file (default: config.yaml)
+--watch_dir         Folder to monitor for new images
+--model_name        Ollama model to use for inference
+--prompt            Prompt for description mode
+--keyword           Enable keywording mode
+--keyword_prompt    Prompt for keyword extraction
+--output_dir        Folder to save processed images
+--output_mode       File handling method: copy or move
+--dry_run           Show final config after overrides and exit
+```
+
+### 🔄 Example Usage
+
+```bash
+python insightpipe.py \
+  --watch_dir /Volumes/wildlife \
+  --output_dir /Volumes/tagged \
+  --model_name gemma:3b \
+  --keyword \
+  --keyword_prompt "Provide a comma-separated list of animal descriptors"
+```
+
+Use `--dry_run` to inspect final configuration before execution:
+
+```bash
+python insightpipe.py --config custom.yaml --dry_run
+```
+
+---
+
