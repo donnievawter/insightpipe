@@ -12,9 +12,10 @@ processed = set()
 while True:
     for fname in os.listdir(config["watch_dir"]):
         fpath = os.path.join(config["watch_dir"], fname)
-        prompt = config.get("prompt", "What do you see in this image?")
+        default_prompt = "Describe people, animals or vehicles in this image. Do not offer to do anything else."
         model = config["model_name"]
-
+        keywords = config.get("keywords", False)
+        prompt = config.get("keywordPrompt") if keywords else config.get("prompt", default_prompt)
         if fpath in processed or not fname.lower().endswith(('.jpg', '.jpeg', '.png')):
             continue
         if is_file_stable(fpath, config["stabilization_interval"]):
@@ -35,7 +36,7 @@ while True:
             else:
                 target_path = fpath  # default: use original location
 
-            tag_image(target_path, desc, model, timestamp, prompt)
+            tag_image(target_path, desc, model, timestamp, prompt, keywords)
             publish(target_path, desc, model, prompt)
 
             processed.add(fpath)

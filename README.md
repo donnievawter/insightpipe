@@ -100,3 +100,32 @@ InsightPipe was designed to remain general. It doesn’t presume what image came
 - Batch inference for archival images
 
 Think of it not as a plugin, but a flexible bridge from perception to insight.
+
+---
+
+## 🏷️ Semantic Keywording Mode
+
+Starting in `v1.3`, InsightPipe supports **prompt-driven keyword extraction**, making it even easier for non-coders to auto-tag images for search, cataloging, or archival use.
+
+### 🔀 Configuration
+
+Enable keyword mode by setting these fields in `config.yaml`:
+
+```yaml
+keyword: true
+keywordPrompt: What keywords would best describe this image? Provide a comma-separated list of tags...
+```
+
+- When `keyword: true`, the app uses `keywordPrompt` instead of the main `prompt`
+- Output is written to `IPTC:Keywords`, not to `Description`
+- No prompt metadata is stored, keeping tags clean and lean
+
+### ✅ Benefits
+
+- Works with **local LLMs via Ollama**
+- Generates highly relevant, searchable tags
+- Ideal for workflows in **photo archiving, semantic search, or gallery prep**
+- No coding required—just drop images into the watch folder and go
+
+---
+

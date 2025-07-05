@@ -1,8 +1,10 @@
-watch_dir: "/Volumes/wildlife"
+watch_dir: "/Volumes/T54T/OneDrive/general2025"
 model_name: "gemma3:4b"
 poll_interval: 15
 stabilization_interval: 3
 ollama_url: "http://crow.lan:11434/api/generate"
-prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."
-output_dir: "/Volumes/T54T/OneDrive/processed_detections"
+keywordPrompt: "What keywords would best describe this image? Provide a comma-separated list of tags that capture the main subjects, actions, and context in the image. Focus on key elements that would help in categorizing or searching for this image later. Avoid generic terms and be specific to the content shown. Provide only thes list and do not say here is the list or anything else."
+output_dir: "/Volumes/T54T/OneDrive/gen25processed"
 output_mode: copy  # or "move"
+keywords: true
+prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."
