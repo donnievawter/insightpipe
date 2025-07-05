@@ -5,3 +5,4 @@ venv-insight/
 processed_index.json
 .env
 scanned/
+.DS_Store

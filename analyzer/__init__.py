@@ -2,13 +2,13 @@ import requests
 import base64
 import time
 
-def analyze_image(path, model, url, retries=3, timeout=60):
+def analyze_image(path, model, url,  prompt="What do you see in this image?",retries=3 ,timeout=60):
     with open(path, "rb") as img:
         encoded = base64.b64encode(img.read()).decode("utf-8")
 
     payload = {
         "model": model,
-        "prompt": "What do you see in this image?",
+        "prompt": prompt,
         "images": [encoded],
         "stream": False
     }

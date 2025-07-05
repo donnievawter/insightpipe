@@ -1,5 +1,6 @@
-watch_dir: "./scanned"
-model_name: "gemma3:27b"
+watch_dir: "/Volumes/wildlife"
+model_name: "gemma3:4b"
 poll_interval: 15
 stabilization_interval: 3
 ollama_url: "http://crow.lan:11434/api/generate"
+prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."
