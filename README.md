@@ -131,9 +131,19 @@ keywordPrompt: What keywords would best describe this image? Provide a comma-sep
 
 ---
 
+---
+
 ## 🧠 Command-Line Execution
 
-Starting in `v1.4`, InsightPipe supports runtime overrides via command-line flags, making it easy to launch multiple instances, test alternative configs, or integrate with shell workflows.
+Starting in `v1.4`, InsightPipe supports runtime overrides via command-line flags. This enables both developer orchestration and simplified one-shot runs for non-technical users.
+
+### 🔄 Default Behavior
+
+InsightPipe defaults to **batch mode**: it scans the contents of `watch_dir` once, applies tagging and keywording, then exits.
+
+To enable continuous watching, use the `--watch` flag or set `"watch": true` in your `config.yaml`.
+
+---
 
 ### 🔧 Available Flags
 
@@ -144,12 +154,65 @@ python insightpipe.py [flags]
 --watch_dir         Folder to monitor for new images
 --model_name        Ollama model to use for inference
 --prompt            Prompt for description mode
---keyword           Enable keywording mode
---keyword_prompt    Prompt for keyword extraction
+--keywords          Enable keywording mode
+--no_keywords       Disable keywording mode
+--keyword_prompt    Prompt for keyword generation
 --output_dir        Folder to save processed images
 --output_mode       File handling method: copy or move
 --dry_run           Show final config after overrides and exit
+--watch             Enable continuous mode (folder is polled indefinitely)
+--batch             Explicitly trigger batch mode (run once and exit)
 ```
+
+---
+
+### 🔄 Execution Modes
+
+| Mode        | Behavior                                                              | Trigger                     |
+|-------------|-----------------------------------------------------------------------|-----------------------------|
+| Batch       | Processes `watch_dir` once, tags images, then exits                   | Default, or `--batch`       |
+| Watch       | Continuously polls folder and tags new images                         | `--watch` or config setting |
+| Dry Run     | Shows final config after overrides; no tagging or file changes        | `--dry_run`                 |
+
+---
+
+### 🧪 Example Usage
+
+**Single-pass batch tagging:**
+
+```bash
+python insightpipe.py \
+  --watch_dir ./images \
+  --output_dir ./tagged \
+  --model_name gemma:3b \
+  --keywords \
+  --keyword_prompt "List descriptive tags for archival purposes"
+```
+
+**Inspect configuration before execution:**
+
+```bash
+python insightpipe.py --config testing.yaml --dry_run
+```
+
+**Enable real-time watching (dev use):**
+
+```bash
+python insightpipe.py --watch
+```
+
+---
+
+### ✅ Notes
+
+- Flags override settings from `config.yaml`
+- Keywording must be toggled explicitly via `--keywords` or `--no_keywords`
+- `--dry_run` is great for verification before batch jobs
+- Non-dev users can skip the CLI entirely and rely on config-driven execution
+
+---
+
+Keep InsightPipe lean, sharp, and composable—just like it was designed.
 
 ### 🔄 Example Usage
 
