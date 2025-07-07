@@ -1,0 +1,6 @@
+prompts:
+  - "Give me five keywords that describe the imagae."
+  - "Describe any animals in this image"
+  - "Give a brief description of the scene shown in this image"
+  - "Give a detailed description of the image"
+  - "What is the main subject of this image?"
