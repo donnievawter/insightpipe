@@ -9,3 +9,4 @@ output_mode: copy  # or "move"
 keywords: true
 prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."
 watch: false
+mqtt_topic: "insightpipe/testimages"  # Base topic for MQTT publishing (can be overridden)

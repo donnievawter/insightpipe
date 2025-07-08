@@ -15,11 +15,13 @@ MQTT_USER     = os.getenv("MQTT_USER")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 MQTT_HOST     = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT     = int(os.getenv("MQTT_PORT", 1883))
-MQTT_TOPIC    = os.getenv("MQTT_TOPIC", "insightpipe")
+MQTT_TOPIC    = "insightpipe/testresults"
 DB_PATH       = os.getenv("RESULTS_DB", "results.db")
 
 # 🗃️ Initialize SQLite connection
-conn = sqlite3.connect(DB_PATH)
+conn_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db", DB_PATH)
+print(f"📂 Connecting to SQLite DB at: {conn_path}")
+conn = sqlite3.connect(conn_path)
 db = conn.cursor()
 
 # 🧱 Ensure results table exists

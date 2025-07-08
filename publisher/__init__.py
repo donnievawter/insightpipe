@@ -10,9 +10,8 @@ MQTT_HOST = os.getenv("MQTT_HOST")
 MQTT_PORT = int(os.getenv("MQTT_PORT"))
 MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
-MQTT_TOPIC = os.getenv("MQTT_TOPIC", "insightpipe")  # Default topic if not set in .env
 
-def publish(path, description, model, prompt):
+def publish(path, description, model, prompt,mqtt_topic="insightpipe"):
     folder, filename = os.path.split(path)
 
     client = mqtt.Client()
@@ -27,5 +26,5 @@ def publish(path, description, model, prompt):
         "prompt": prompt
     }
 
-    client.publish(MQTT_TOPIC, json.dumps(payload))
+    client.publish(mqtt_topic, json.dumps(payload))
     client.disconnect()

@@ -1,8 +1,8 @@
 qwen2.5vl:7b
-#llava:7b
-#llama3.2-vision:11b
+llava:7b
+llama3.2-vision:11b
 #moondream:1.8b
-#mistral-small3.1:24b
+mistral-small3.1:24b
 qwen2.5vl:32b
 qwen2.5vl:3b
 qwen2.5vl:latest

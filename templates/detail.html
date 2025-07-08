@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>InsightPipe Detail View</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h2>Result Details</h2>
+  <div class="block"><span class="label">Filename:</span> {{ result['filename'] }}</div>
+  <div class="block"><span class="label">Model:</span> {{ result['model'] }}</div>
+  <div class="block"><span class="label">Prompt:</span> {{ result['prompt'] }}</div>
+  <div class="block"><span class="label">Description:</span>
+    <div class="description">{{ result['description'] }}</div>
+  </div>
+  <a href="/">Back to overview</a>
+</body>
+</html>

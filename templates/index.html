@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>InsightPipe Test Viewer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </style>
+</head>
+<body>
+<form method="get">
+  <label>Model:
+    <select name="model">
+      <option value="">All</option>
+      {% for m in models %}
+        <option value="{{ m }}" {% if request.args.get('model') == m %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Prompt:
+    <select name="prompt">
+      <option value="">All</option>
+      {% for p in prompts %}
+        <option value="{{ p }}" {% if request.args.get('prompt') == p %}selected{% endif %}>
+          {{ p[:30] }}…
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Filename:
+    <select name="filename">
+      <option value="">All</option>
+      {% for f in filenames %}
+        <option value="{{ f }}" {% if request.args.get('filename') == f %}selected{% endif %}>{{ f }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Run Timestamp:
+    <select name="test_run_timestamp">
+      <option value="">All</option>
+      {% for ts in timestamps %}
+        <option value="{{ ts }}" {% if request.args.get('test_run_timestamp') == ts %}selected{% endif %}>{{ ts }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Sort By:
+    <select name="sort">
+      <option value="model">Model</option>
+      <option value="prompt">Prompt</option>
+      <option value="filename">Filename</option>
+      <option value="test_run_timestamp">Timestamp</option>
+    </select>
+  </label>
+
+  <label>Order:
+    <select name="order">
+      <option value="asc">Ascending</option>
+      <option value="desc">Descending</option>
+    </select>
+  </label>
+
+  <button type="submit">Filter</button>
+</form>
+
+
+  <h2>InsightPipe Test Results</h2>
+  <table>
+    <tr>
+      <th>Model</th>
+      <th>Prompt</th>
+      <th>Description</th>
+      <th>Filename</th>
+      <th>View</th>
+    </tr>
+    {% for row in results %}
+    <tr>
+      <td>{{ row['model'] }}</td>
+      <td>{{ row['prompt'] }}</td>
+      <td class="description">{{ row['description'] }}</td>
+      <td>{{ row['filename'] }}</td>
+      <td><a href="/view/{{ row['id'] }}">Details</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

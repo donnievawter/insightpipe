@@ -3,9 +3,11 @@ from analyzer import analyze_image
 from publisher import publish
 from utils import is_file_stable
 from tagger import tag_image
-from shutil import move, copy2
+from shutil import move, copy2, copy
 import argparse
 import sys
+import subprocess
+
 # Parse CLI arguments
 parser = argparse.ArgumentParser(
     description="Run InsightPipe with optional config and runtime overrides"
@@ -23,7 +25,7 @@ parser.add_argument("--watch", action="store_true", help="Enable watch mode for 
 parser.add_argument("--keywords", action="store_true", help="Enable keywording mode")
 parser.add_argument("--no_keywords", action="store_true", help="Disable keywording mode")
 parser.add_argument("--batch", action="store_true", help="Distable watch, enable batch processing of existing images")
-
+parser.add_argument("--mqtt_topic", help="Base topic for MQTT publishing (overrides config)")
 args = parser.parse_args()
 
 # Load config from file
@@ -51,19 +53,64 @@ if args.watch:
     config["watch"] = True
 if args.batch:
     config["watch"] = False
+if args.mqtt_topic:
+    config["mqtt_topic"] = args.mqtt_topic
 
 if args.watch and args.batch:
     print("⚠️ Conflicting flags: both --watch and --batch passed. Defaulting to watch mode.")
 
-if args.dry_run:
-    print("\n🧪 InsightPipe Dry Run — Final Configuration:\n")
-    for k, v in config.items():
-        print(f"  {k}: {v}")
-    sys.exit(0)
 model=config["model_name"]
 prompt = config["prompt"]
 keywords=config["keywords"]
+mqtt_topic = config.get("mqtt_topic", "insightpipe")  # Default topic if not set in config
+
+def get_available_models():
+    try:
+        result = subprocess.run(["ollama", "list"], capture_output=True, text=True, check=True)
+        lines = result.stdout.strip().split("\n")
+        models = [line.split()[0] for line in lines if line.strip()]
+        return models
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] Failed to retrieve models: {e}")
+        return []
+def validate_runtime(config, dry_run=False):
+    errors = []
+
+    # Check model availability
+    model_name = config.get("model_name")
+    available_models = get_available_models()
+    if dry_run:
+        print("[AVAILABLE MODELS]:\n", "\n* ".join(available_models))
+        if args.dry_run:
+            print("\n🧪 InsightPipe Dry Run — Final Configuration:\n")
+        for k, v in config.items():
+            print(f"  {k}: {v}")
+    
+
+    if model_name not in available_models:
+        errors.append(f"Model '{model_name}' is not available via Ollama.")
+
+    # Check MQTT topic syntax (optional example)
+    topic = config.get("mqtt_topic")
+    if not topic or "/" not in topic:
+        errors.append(f"MQTT topic '{topic}' is malformed or missing a slash.")
+
+    # Check paths
+    watch_dir = config.get("watch_dir")
+    if not os.path.exists(watch_dir):
+        errors.append(f"Watch directory '{watch_dir}' does not exist.")
+
+    # Report and bail if errors
+    if errors:
+        print("[CONFIG VALIDATION ERRORS]")
+        for err in errors:
+            print(f"  • {err}")
+        sys.exit(1)
+    if dry_run:
+        sys.exit(0)
+    
 processed= set()  # Track processed files to avoid duplicates
+validate_runtime(config, dry_run=args.dry_run)
 def process_watch_dir_loop():
     print("🔄 Watch mode enabled — monitoring folder for new images")
     while True:
@@ -108,7 +155,7 @@ def process_image(fpath):
         target_path = fpath  # default: use original location
 
     tag_image(target_path, desc, model, timestamp, prompt, keywords)
-    publish(target_path, desc, model, prompt)
+    publish(target_path, desc, model, prompt,mqtt_topic)
 
     processed.add(fpath)
 
@@ -138,7 +185,7 @@ def process_new_files():
                 if mode == "move":
                     move(fpath, target_path)
                 else:
-                    copy2(fpath, target_path)
+                    copy(fpath, target_path)
             else:
                 target_path = fpath  # default: use original location
 

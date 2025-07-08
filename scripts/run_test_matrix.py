@@ -71,6 +71,7 @@ for model_name, prompt, image_path in product(models, prompts, images):
         "--output_dir", output_dir,
         "--output_mode", "copy",
         "--no_keywords",  
+        "--mqtt_topic", "insightpipe/testresults",  # Default topic for batch runs
         "--batch"
     ]
 
