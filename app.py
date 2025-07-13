@@ -1,7 +1,40 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
+import markdown
+import html
+import datetime
 import sqlite3
-
+import os
+import requests
+from flask import jsonify
+from flask import session
+from insightpipe import init_from_file, get_ollama_url, getVisionModels,describe_file,keyword_file
+from dotenv import load_dotenv
+import yaml
 app = Flask(__name__)
+@app.template_filter("markdown")
+def markdown_filter(text):
+    # Unescape HTML entities
+    unescaped = html.unescape(text)
+
+    # Normalize triple backticks to start on a new line
+    if "```" in unescaped:
+        unescaped = unescaped.replace("<p>```", "```").replace("```</p>", "```")
+
+    return markdown.markdown(unescaped, extensions=["fenced_code", "codehilite"])
+
+
+load_dotenv()
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+init_from_file()  # Load config.yaml and set global state
+ollama_url = get_ollama_url("chat")
+
+def clean_markdown(text):
+    # Remove stray <p> tags around fenced blocks
+    text = text.replace("<p>```", "```").replace("```</p>", "```")
+    return text
+
+
+
 
 DB_PATH = "db/results.db"
 def get_filter_options():
@@ -41,9 +74,58 @@ def fetch_result_by_id(result_id):
     conn.close()
     return row
 
+def build_chat_payload(model, prompt, prior_messages=None, system_prompt="Respond to queries in English", temperature=0.7):
+    messages = prior_messages[:] if prior_messages else []
+
+    # Insert system message if not present
+    if not any(m["role"] == "system" for m in messages):
+        messages.insert(0, {"role": "system", "content": system_prompt})
+
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "temperature": temperature
+    }
+
+    return payload, messages
+
+
+def prompt_model(model, prompt, history=None, ollama_url=None, system_prompt="Respond to queries in English"):
+    payload, updated_history = build_chat_payload(
+        model, prompt,
+        prior_messages=history,
+        system_prompt=system_prompt,
+        temperature=0.7
+    )
+   
+    try:
+        response = requests.post(f"{ollama_url}", json=payload, timeout=120)
+        response.raise_for_status()
+        content = response.json().get("message", {}).get("content", "").strip()
+    except Exception as e:
+        content = f"Error: {str(e)}"
+
+    return {
+        "model": model,
+        "timestamp": datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S"),
+        "prompt": prompt,
+        "history": history if history else [],
+        "response": content
+    }, updated_history
+
+
+
+
 
 @app.route("/")
 def index():
+    return redirect("/chat")
+
+@app.route("/results")
+def results():
     model = request.args.get("model")
     prompt = request.args.get("prompt")
     filename = request.args.get("filename")
@@ -89,6 +171,97 @@ def index():
 def detail(result_id):
     result = fetch_result_by_id(result_id)
     return render_template("detail.html", result=result)
+
+
+
+@app.route("/keywords", methods=["POST"])
+def keywords_endpoint():
+    image = request.files.get("file")
+    model = request.form.get("model")
+    max_keywords = request.form.get("max_keywords", type=int)
+
+    if not image:
+        return jsonify({"error": "Missing image"}), 400
+    temp_path = os.path.join("/tmp", image.filename)
+    image.save(temp_path)
+    result = keyword_file(temp_path, model=model, max_keywords=max_keywords)
+    return jsonify(result)
+
+@app.route("/describe", methods=["POST"])
+def describe_endpoint():
+    image = request.files.get("file")
+    prompt = request.form.get("prompt")
+    model = request.form.get("model")
+
+    if not image or not prompt:
+        return jsonify({"error": "Missing image or prompt"}), 400
+    temp_path = os.path.join("/tmp", image.filename)
+    image.save(temp_path)
+
+    result = describe_file(temp_path, prompt=prompt, model=model)
+
+    os.remove(temp_path)  # optional cleanup
+  
+    return jsonify(result)
+@app.route("/chat", methods=["GET", "POST"])
+def chat():
+    if request.method == "GET":
+        session.clear()  # 🔄 New session starts fresh
+        session["system_prompt"] = request.args.get("context", "Respond to queries in English")
+    models = getVisionModels()
+    prompt_history = session.get("prompt_history", [])
+    message_history = session.get("message_history", [])
+    result = None
+
+    if request.method == "POST":
+        model = request.form.get("model")
+        prompt = request.form.get("prompt")
+
+        # ✅ Store model only on the first turn
+        if "model" not in session and model:
+            session["model"] = model
+
+        # ✅ Use locked model for all subsequent turns
+        active_model = session.get("model")
+        print(f"Using model: {active_model}")
+        if prompt and prompt not in prompt_history:
+            prompt_history.append(prompt)
+            session["prompt_history"] = prompt_history
+
+        system_prompt = request.args.get("context", "Respond to queries in English")
+        response_data, updated_history = prompt_model(
+            model=model,
+            prompt=prompt,
+            history=message_history,
+            ollama_url=ollama_url,
+            system_prompt=system_prompt
+        )
+        response_text = clean_markdown(response_data["response"])
+        updated_history.append({
+            "role": "assistant",
+            "content": response_text
+     })
+        session["message_history"] = updated_history
+        result = response_data
+        result["response"] = clean_markdown(result["response"])
+
+        print(f"Raw response:\n{repr(result['response'])}")
+        #print(markdown.markdown(result["response"], extensions=["fenced_code", "codehilite"]))
+   
+    return render_template(
+        "chat.html",
+        models=models,
+        prompt_history=prompt_history,
+        result=result,
+        locked_model=session.get("model")  # 🧷 Pass model to template
+    )
+
+
+
+@app.route("/reset", methods=["POST"])
+def reset():
+    session.clear()
+    return redirect("/chat")
 
 if __name__ == "__main__":
    app.run(host='0.0.0.0', port=5050, debug=True)

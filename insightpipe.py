@@ -10,16 +10,22 @@ import subprocess
 _config = {}
 _model = None
 _keyword_prompt = None
-_ollama_url = None
+_ollama_url_base = None
 _initialized = False
 def init_from_file(config_path="config.yaml"):
-    global _config, _model, _keyword_prompt, _ollama_url, _initialized
+    global _config, _model, _keyword_prompt, _ollama_url_base, _initialized
     with open(config_path, "r") as f:
         _config = yaml.safe_load(f)
     _model = _config.get("model_name")
     _keyword_prompt = _config.get("keywordPrompt")
-    _ollama_url = _config.get("ollama_url")
+    _ollama_url_base = _config.get("ollama_url_base")
     _initialized = True
+def get_ollama_url(endpoint="chat"):
+    if not _initialized:
+        init_from_file()
+    return f"{_ollama_url_base.rstrip('/')}/api/{endpoint}"
+
+
 
 def get_available_models():
     try:
@@ -30,7 +36,10 @@ def get_available_models():
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Failed to retrieve models: {e}")
         return []
-
+def getVisionModels():
+    all_models = get_available_models()
+    vision_models = all_models
+    return vision_models
 def generate_tag_json(fpath, desc, model, timestamp, prompt, use_keywords,max_keywords=None):
     tags = {
         "filepath": fpath,
@@ -60,9 +69,10 @@ def keyword_file(fpath, model=None,max_keywords=None):
     available_models = get_available_models()
     if selected_model not in available_models:
         raise ValueError(f"🚫 Model '{selected_model}' not available. Choose from: {available_models}")
+    ollama_url = get_ollama_url("generate")  # Use centralized method
     timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
-    desc = analyze_image(fpath, selected_model, _ollama_url, _keyword_prompt)
+    desc = analyze_image(fpath, selected_model, ollama_url, _keyword_prompt)
     return generate_tag_json(fpath, desc, selected_model, timestamp, _keyword_prompt, True,max_keywords)
 def describe_file(fpath, prompt, model=None):
     timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
@@ -74,9 +84,9 @@ def describe_file(fpath, prompt, model=None):
     available_models = get_available_models()
     if selected_model not in available_models:
         raise ValueError(f"🚫 Model '{selected_model}' not available. Choose from: {available_models}")
+    ollama_url = get_ollama_url("generate")  # Use centralized method
 
-
-    desc = analyze_image(fpath, selected_model, _ollama_url, prompt)
+    desc = analyze_image(fpath, selected_model, ollama_url, prompt)
 
     return {
         "filepath": fpath,
@@ -279,6 +289,8 @@ def run_main_pipeline():
         print("🚨 No mode selected. Use --input, --batch, or --watch.")
         sys.exit(1)
 if __name__ == "__main__":
+    init_from_file()
+    ollama_url = get_ollama_url("generate")
     # your CLI argument parsing and execution goes here
     run_main_pipeline()
 
