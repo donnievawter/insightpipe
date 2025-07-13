@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, session
+from flask_session import Session
+import redis
 import markdown
 import html
 import datetime
@@ -9,8 +11,31 @@ from flask import jsonify
 from flask import session
 from insightpipe import init_from_file, get_ollama_url, getVisionModels,describe_file,keyword_file
 from dotenv import load_dotenv
+from datetime import timedelta
+
 import yaml
 app = Flask(__name__)
+
+# Redis connection
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_REDIS'] = redis.Redis(
+    host=os.getenv("REDIS_URL"),
+    port=int(os.getenv("REDIS_PORT")),
+    password=os.getenv("REDIS_PWD")
+    
+)
+
+
+# Optional: session timeout
+app.config['PERMANENT_SESSION_LIFETIME'] = int(os.getenv("SESSION_LIFETIME", "3600"))
+
+
+# Initialize session manager
+Session(app)
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 @app.template_filter("markdown")
 def markdown_filter(text):
     # Unescape HTML entities

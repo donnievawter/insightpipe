@@ -10,7 +10,7 @@
 
 
   <h2>Talk to Model</h2>
-<form method="get" action="/chat">
+<form id="context-form" method="get" action="/chat">
   <label for="context">New System Prompt:</label>
   <input type="text" name="context" placeholder="e.g. You are an English Butler..." style="width: 100%;">
   <button type="submit">Start New Session</button>
@@ -20,7 +20,7 @@
 </div>
 
 
-  <form method="POST">
+  <form id="chat-form" method="POST">
     <label for="model">Model:</label>
     {% if locked_model %}
       <span style="font-weight: bold">{{ locked_model }}</span>
@@ -50,7 +50,7 @@
       </div>
     {% endif %}
 
-    <button type="submit">Send</button>
+    <button id="submit-btn" type="submit">Send</button>
   </form>
 
 {% if result %}
@@ -70,6 +70,19 @@
   </div>
 {% endif %}
 
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const chatForm = document.getElementById("chat-form");
+  const submitBtn = document.getElementById("submit-btn");
+
+  if (chatForm && submitBtn) {
+    chatForm.addEventListener("submit", () => {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Sending...";
+    });
+  }
+});
+</script>
 
 </body>
 </html>

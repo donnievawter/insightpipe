@@ -97,3 +97,8 @@ code, pre {
   margin-bottom: 1em;
   border-left: 4px solid #80cbc4;
 }
+#submit-btn:disabled {
+  background-color: #666;
+  color: #ccc;
+  cursor: not-allowed;
+}
