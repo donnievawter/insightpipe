@@ -7,6 +7,7 @@ import datetime
 import sqlite3
 import os
 import requests
+import hashlib
 from flask import jsonify
 from flask import session
 from insightpipe import init_from_file, get_ollama_url, getVisionModels,describe_file,keyword_file
@@ -230,6 +231,7 @@ def describe_endpoint():
     return jsonify(result)
 @app.route("/chat", methods=["GET", "POST"])
 def chat():
+    print("Starting chat endpoint")
     if request.method == "GET":
         session.clear()  # 🔄 New session starts fresh
         session["system_prompt"] = request.args.get("context", "Respond to queries in English")
@@ -237,11 +239,13 @@ def chat():
     prompt_history = session.get("prompt_history", [])
     message_history = session.get("message_history", [])
     result = None
-
+    keywords_response = None
+    describe_response = None
     if request.method == "POST":
+        print("Processing POST request in chat endpoint")
         model = request.form.get("model")
         prompt = request.form.get("prompt")
-
+        prompt = (prompt or "").strip()
         # ✅ Store model only on the first turn
         if "model" not in session and model:
             session["model"] = model
@@ -254,31 +258,74 @@ def chat():
             session["prompt_history"] = prompt_history
 
         system_prompt = request.args.get("context", "Respond to queries in English")
-        response_data, updated_history = prompt_model(
-            model=model,
-            prompt=prompt,
-            history=message_history,
-            ollama_url=ollama_url,
-            system_prompt=system_prompt
-        )
-        response_text = clean_markdown(response_data["response"])
-        updated_history.append({
-            "role": "assistant",
-            "content": response_text
-     })
-        session["message_history"] = updated_history
-        result = response_data
-        result["response"] = clean_markdown(result["response"])
+      
+        run_keywords = request.form.get("run_keywords")
+       
+        image = request.files.get("file")
+        if image:
+ 
 
-        print(f"Raw response:\n{repr(result['response'])}")
-        #print(markdown.markdown(result["response"], extensions=["fenced_code", "codehilite"]))
+            filename_hash = hashlib.md5(image.read()).hexdigest() + "_" + image.filename
+            image_path = os.path.join("static", "uploads", filename_hash)
+            image.seek(0)  # rewind after hashing
+            image.save(image_path)
+            session["image_path"] = filename_hash  # Persist across messages
+            print(f"Image uploaded: {image_path}")
+        if run_keywords and image:
+            max_keywords = 10
+            resultk = keyword_file(image_path, model=active_model, max_keywords=max_keywords)
+            print(f"Keyword result: {resultk}")
+            jsonify(resultk)
+            keywords_response = resultk["keywords"]
+            message_history.append({
+                "role": "assistant",
+                "content": keywords_response
+            })
+            session["message_history"] = message_history
+            print(f"Keywords: {resultk['keywords']}")
+        if image:
+            
+            resultd = describe_file(image_path,prompt=prompt or "Describe the image in detail", model=active_model)
+            jsonify(resultd)
+            print(f"Describe result: {resultd}")
+            describe_response = clean_markdown(resultd["description"])
+            result = resultd
+            result["response"] = describe_response
+            message_history.append({
+                "role": "assistant",
+                "content": describe_response
+            })
+            session["message_history"] = message_history
+       
+            print(f"Description: {describe_response}")
+        if  not image:
+            response_data, updated_history = prompt_model(
+                model=model,
+                prompt=prompt,
+                history=message_history,
+                ollama_url=ollama_url,
+                system_prompt=system_prompt
+            )
+            response_text = clean_markdown(response_data["response"])
+            updated_history.append({
+                "role": "assistant",
+                "content": response_text
+            })
+            result = response_data
+            result["response"] = clean_markdown(result["response"])
+            print(f"Raw response:\n{repr(result['response'])}")
+            #print(markdown.markdown(result["response"], extensions=["fenced_code", "codehilite"])) 
+            session["message_history"] = updated_history
+       
    
     return render_template(
         "chat.html",
         models=models,
         prompt_history=prompt_history,
         result=result,
-        locked_model=session.get("model")  # 🧷 Pass model to template
+        locked_model=session.get("model"),
+        keywords_response= keywords_response,      
+        image_path=session.get("image_path") # 🧷 Pass model to template
     )
 
 

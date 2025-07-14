@@ -11,3 +11,4 @@ assets/test_images/
 results.db
 results/
 temp_batch/
+static/uploads/

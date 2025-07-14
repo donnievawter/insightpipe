@@ -1,88 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>InsightPipe Chat</title>
   <link rel="stylesheet" href="/static/chat.css">
 </head>
+
 <body>
 
+  <div class="page-wrapper">
+
+    <h2>Talk to Model</h2>
+    <form id="context-form" method="get" action="/chat">
+      <label for="context">New System Prompt:</label>
+      <input type="text" name="context" placeholder="e.g. You are an English Butler..." style="width: 100%;">
+      <button type="submit">Start New Session</button>
+    </form>
+    <div class="active-context">
+      <strong>Current System prompt:</strong> {{ session["system_prompt"] }}
+    </div>
+    <form id="chat-form" method="POST" enctype="multipart/form-data">
+      <div class="block">
+        <label for="file">Upload Image:</label>
+        <input type="file" id="imageInput" name="file" accept="image/*">
+        <br>
+        <img id="preview" style="max-width:300px; display:none; margin-top:10px;">
+      </div>
 
 
-  <h2>Talk to Model</h2>
-<form id="context-form" method="get" action="/chat">
-  <label for="context">New System Prompt:</label>
-  <input type="text" name="context" placeholder="e.g. You are an English Butler..." style="width: 100%;">
-  <button type="submit">Start New Session</button>
-</form>
-<div class="active-context">
-  <strong>Current System prompt:</strong> {{ session["system_prompt"] }}
-</div>
 
 
-  <form id="chat-form" method="POST">
-    <label for="model">Model:</label>
-    {% if locked_model %}
+      <div id="optionsSection" style="display:none;">
+        <h4>Optional Operations:</h4>
+
+        <label><input type="checkbox" name="run_keywords"> Generate Keywords for Image</label><br>
+
+      </div>
+
+      <label for="model">Model:</label>
+      {% if locked_model %}
       <span style="font-weight: bold">{{ locked_model }}</span>
       <input type="hidden" name="model" value="{{ locked_model }}">
-    {% else %}
+      {% else %}
       <select name="model" id="model">
         {% for m in models %}
-          <option value="{{ m }}">{{ m }}</option>
+        <option value="{{ m }}">{{ m }}</option>
         {% endfor %}
       </select>
-    {% endif %}
+      {% endif %}
 
-    <div class="block">
-      <label for="prompt">Prompt:</label><br>
-      <textarea name="prompt" rows="4" placeholder="Type your prompt here..."></textarea>
-    </div>
+      <div class="block">
+        <label for="prompt">Prompt:</label><br>
+        <textarea name="prompt" rows="4" placeholder="Type your prompt here..."></textarea>
+      </div>
 
-    {% if prompt_history %}
+      {% if prompt_history %}
       <div class="block">
         <label for="prior">Previous Prompts:</label>
         <select onchange="document.querySelector('textarea[name=prompt]').value=this.value;">
           <option value="">-- Select --</option>
           {% for p in prompt_history %}
-            <option value="{{ p }}">{{ p }}</option>
+          <option value="{{ p }}">{{ p }}</option>
           {% endfor %}
         </select>
       </div>
-    {% endif %}
+      {% endif %}
 
-    <button id="submit-btn" type="submit">Send</button>
-  </form>
+      <button id="submit-btn" type="submit">Send</button>
+    </form>
 
-{% if result %}
-  <div class="response">
-    <h3>Latest Response:</h3>
-    {{ result.response | markdown | safe }}
-  </div>
+    <div class="image-result">
+      {% if image_path %}
+      <img src="/static/uploads/{{ image_path }}" alt="Uploaded Image">
+      {% endif %}
+      <div class="image-meta">
+        {% if result %}
+        <div class="description">{{ result.response | markdown | safe }}</div>
+        {% endif %}
+        {% if keywords_response %}
+        <div class="keywords">
+          <strong>Keywords:</strong>
+          {{ keywords_response | join(", ") }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
 
-  <div class="history">
-    <h4>Conversation History:</h4>
-    {% for m in result.history %}
+    <div class="history">
+      <h4>Conversation History:</h4>
+      {% for m in result.history %}
       <div class="{{ 'user-message' if m.role == 'user' else 'agent-message' }}">
         <strong>{{ m.role | capitalize }}:</strong>
         {{ m.content | markdown | safe }}
       </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
   </div>
-{% endif %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const chatForm = document.getElementById("chat-form");
+      const submitBtn = document.getElementById("submit-btn");
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const chatForm = document.getElementById("chat-form");
-  const submitBtn = document.getElementById("submit-btn");
-
-  if (chatForm && submitBtn) {
-    chatForm.addEventListener("submit", () => {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Sending...";
+      if (chatForm && submitBtn) {
+        chatForm.addEventListener("submit", () => {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Sending...";
+        });
+      }
     });
-  }
-});
-</script>
+    document.getElementById("imageInput").addEventListener("change", function () {
+      const file = this.files[0];
+      if (file && file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const preview = document.getElementById("preview");
+          preview.src = e.target.result;
+          preview.style.display = "block";
+          document.getElementById("optionsSection").style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+  </script>
 
 </body>
+
 </html>

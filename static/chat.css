@@ -102,3 +102,36 @@ code, pre {
   color: #ccc;
   cursor: not-allowed;
 }
+.image-result {
+  display: flex;
+  gap: 1em;
+  align-items: flex-start;
+  margin-top: 2em;
+}
+
+.image-result img {
+  max-width: 300px;
+  border-radius: 8px;
+  border: 2px solid #444;
+}
+
+.image-meta {
+  flex: 1;
+}
+
+.image-meta .description {
+  margin-bottom: 1em;
+}
+
+.keywords {
+  background-color: #1f1f1f;
+  padding: 0.5em;
+  border-radius: 6px;
+  border: 1px dashed #555;
+  font-size: 0.95em;
+}
+.page-wrapper {
+  padding: 2em;
+  max-width: 1200px;
+  margin: 0 auto;
+}
