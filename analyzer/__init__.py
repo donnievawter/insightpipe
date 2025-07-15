@@ -2,7 +2,7 @@ import requests
 import base64
 import time
 
-def analyze_image(path, model, url,  prompt="What do you see in this image?",retries=3 ,timeout=120):
+def analyze_image(path, model, url,  prompt="What do you see in this image?",retries=3 ,timeout=120, job_id=None): 
     with open(path, "rb") as img:
         encoded = base64.b64encode(img.read()).decode("utf-8")
 
@@ -23,11 +23,14 @@ def analyze_image(path, model, url,  prompt="What do you see in this image?",ret
 
             desc = response.json().get("response", "").strip()
             if desc:
+                if job_id is not None:
+                    return desc, job_id
                 return desc
             print(f"🟡 Attempt {attempt}: No response content")
         except Exception as e:
             print(f"🔴 Attempt {attempt} failed: {e}")
 
         time.sleep(5)
-
+    if job_id is not None:
+       return "No description generated after retries", job_id
     return "No description generated after retries"

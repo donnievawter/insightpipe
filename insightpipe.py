@@ -7,29 +7,54 @@ from shutil import move, copy2, copy
 import argparse
 import sys
 import subprocess
+import rawpy
+import imageio
+import tempfile
+
+
 _config = {}
 _model = None
 _keyword_prompt = None
 _ollama_url_base = None
 _initialized = False
 def init_from_file(config_path="config.yaml"):
-    global _config, _model, _keyword_prompt, _ollama_url_base, _initialized
+    global _config, _model, _keyword_prompt, _ollama_url_base, _initialized, _default_model
+    # Resolve config path relative to this script's directory
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), config_path)
     with open(config_path, "r") as f:
         _config = yaml.safe_load(f)
     _model = _config.get("model_name")
     _keyword_prompt = _config.get("keywordPrompt")
     _ollama_url_base = _config.get("ollama_url_base")
+    _default_model = _config.get("default_model","qwen2.5vl:latest")
     _initialized = True
 def get_ollama_url(endpoint="chat"):
-    if not _initialized:
-        init_from_file()
+    
     return f"{_ollama_url_base.rstrip('/')}/api/{endpoint}"
 
 
+def get_tagging_target(source_path, converted_path=None):
+    return source_path if source_path.lower().endswith(".orf") else converted_path or source_path
+
+
+def convert_orf_to_jpg(orf_path):
+    with rawpy.imread(orf_path) as raw:
+        rgb = raw.postprocess()
+
+    # Create a temp directory (you could customize this path)
+    tmp_dir = os.path.join(tempfile.gettempdir(), "insightpipe_previews")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    # Use original base filename but write to temp dir
+    base_name = os.path.splitext(os.path.basename(orf_path))[0] + ".jpg"
+    jpg_path = os.path.join(tmp_dir, base_name)
+
+    imageio.imwrite(jpg_path, rgb, format='JPEG')
+    return jpg_path
 
 def get_available_models():
     try:
-        result = subprocess.run(["ollama", "list"], capture_output=True, text=True, check=True)
+        result = subprocess.run(["/usr/local/bin/ollama", "list"], capture_output=True, text=True, check=True)
         lines = result.stdout.strip().split("\n")
         models = [line.split()[0] for line in lines if line.strip()]
         return models
@@ -37,9 +62,15 @@ def get_available_models():
         print(f"[ERROR] Failed to retrieve models: {e}")
         return []
 def getVisionModels():
-    all_models = get_available_models()
-    vision_models = all_models
-    return vision_models
+    models = sorted(get_available_models(), key=lambda x: x.lower())
+    try:
+      
+            if _default_model in models:
+                return models, _default_model
+    except Exception:
+        pass
+    return models, None
+
 def generate_tag_json(fpath, desc, model, timestamp, prompt, use_keywords,max_keywords=None):
     tags = {
         "filepath": fpath,
@@ -59,35 +90,67 @@ def generate_tag_json(fpath, desc, model, timestamp, prompt, use_keywords,max_ke
 
     return tags
 
-def keyword_file(fpath, model=None,max_keywords=None):
+def keyword_file(fpath, model=None,max_keywords=None,job_id=None):
     global _initialized
 
     if not _initialized:
         init_from_file()
+    source_path = fpath
+    target_path = source_path
+    if source_path.lower().endswith(".orf"):
+       print(f"Converting ORF to JPG: {source_path}")
+       target_path = convert_orf_to_jpg(source_path)
+       print(f"Converted to: {target_path}")
+ 
 
     selected_model = model if model else _model
-    available_models = get_available_models()
+    available_models, preselected= getVisionModels()
     if selected_model not in available_models:
         raise ValueError(f"🚫 Model '{selected_model}' not available. Choose from: {available_models}")
     ollama_url = get_ollama_url("generate")  # Use centralized method
     timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
-    desc = analyze_image(fpath, selected_model, ollama_url, _keyword_prompt)
-    return generate_tag_json(fpath, desc, selected_model, timestamp, _keyword_prompt, True,max_keywords)
-def describe_file(fpath, prompt, model=None):
+    desc , return_job_id = analyze_image(target_path, selected_model, ollama_url, _keyword_prompt, job_id=job_id)
+    if source_path != target_path and os.path.exists(target_path):
+        os.remove(target_path)
+
+    if job_id is not None:
+        return generate_tag_json(fpath, desc, selected_model, timestamp, _keyword_prompt, True,max_keywords), return_job_id
+    return generate_tag_json(fpath, desc, selected_model, timestamp, _keyword_prompt, True,max_keywords)    
+
+def describe_file(fpath, prompt, model=None,job_id=None):
+    source_path = fpath
+    target_path = source_path
+    if source_path.lower().endswith(".orf"):
+       print(f"Converting ORF to JPG: {source_path}")
+       target_path = convert_orf_to_jpg(source_path)
+       print(f"Converted to: {target_path}")
+      
+     
+
     timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
     if not _initialized:
         init_from_file()
 
     selected_model = model if model else _model
-    available_models = get_available_models()
+    available_models , preselected = getVisionModels()
     if selected_model not in available_models:
         raise ValueError(f"🚫 Model '{selected_model}' not available. Choose from: {available_models}")
     ollama_url = get_ollama_url("generate")  # Use centralized method
 
-    desc = analyze_image(fpath, selected_model, ollama_url, prompt)
+    desc,return_job_id = analyze_image(target_path, selected_model, ollama_url, prompt, job_id=job_id)
+    if source_path != target_path and os.path.exists(target_path):
+        os.remove(target_path)
 
+   
+    if job_id is not None:
+        return {
+            "filepath": fpath,
+            "timestamp": timestamp,
+            "model": selected_model,
+            "description": desc.strip()
+        }, return_job_id
     return {
         "filepath": fpath,
         "timestamp": timestamp,
@@ -123,7 +186,9 @@ def run_main_pipeline():
     # Load config from file
     with open(args.config) as f:
         config = yaml.safe_load(f)
-
+    global _ollama_url_base
+    _ollama_url_base = config.get("ollama_url_base")
+    ollama_url= get_ollama_url("generate")
     # Override with CLI args if provided
     if args.watch_dir:
         config["watch_dir"] = args.watch_dir
@@ -161,7 +226,7 @@ def run_main_pipeline():
 
         # Check model availability
         model_name = config.get("model_name")
-        available_models = get_available_models()
+        available_models ,preselected = getVisionModels()
         if dry_run:
             print("[AVAILABLE MODELS]:\n", "\n* ".join(available_models))
             if args.dry_run:
@@ -194,6 +259,8 @@ def run_main_pipeline():
         
     processed= set()  # Track processed files to avoid duplicates
     validate_runtime(config, dry_run=args.dry_run)
+ 
+
     def process_watch_dir_loop():
         print("🔄 Watch mode enabled — monitoring folder for new images")
         while True:
@@ -207,7 +274,7 @@ def run_main_pipeline():
     def process_watch_dir_once():
         print("🧪 Batch mode — processing all images in watch folder and subfolders")
 
-        image_extensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+        image_extensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".orf"]
         
         for root, dirs, files in os.walk(config["watch_dir"]):
             for f in files:
@@ -219,28 +286,36 @@ def run_main_pipeline():
         sys.exit(0)
 
     def process_image(fpath):
+        source_path = fpath
+        target_path = source_path
+        if source_path.lower().endswith(".orf"):
+            print(f"Converting ORF to JPG: {source_path}")
+            target_path = convert_orf_to_jpg(source_path)
+            print(f"Converted to: {target_path}")
         prompt = config.get("keywordPrompt") if keywords else config.get("prompt")
-        desc = analyze_image(fpath, model, config["ollama_url"], prompt)
-        print(f"Processed: {fpath} -> {desc}")
+        desc = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
+        print(f"Processed: {target_path} -> {desc}")
         timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+        if source_path != target_path and os.path.exists(target_path):
+            os.remove(target_path)
 
         # Decide output directory
         output_dir = config.get("output_dir", "").strip()
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            target_path = os.path.join(output_dir, fpath.split(os.path.sep)[-1])  # Keep original filename
+            target_path = os.path.join(output_dir, source_path.split(os.path.sep)[-1])  # Keep original filename
             mode = config.get("output_mode", "copy").lower()
             if mode == "move":
-                move(fpath, target_path)
+                move(source_path, target_path)
             else:
-                copy2(fpath, target_path)
+                copy2(source_path, target_path)
         else:
-            target_path = fpath  # default: use original location
+            target_path = source_path  # default: use original location
 
         tag_image(target_path, desc, model, timestamp, prompt, keywords)
         publish(target_path, desc, model, prompt,mqtt_topic)
 
-        processed.add(fpath)
+        processed.add(source_path)
 
 
 
@@ -252,30 +327,10 @@ def run_main_pipeline():
             model = config["model_name"]
             keywords = config.get("keywords", False)
             prompt = config.get("keywordPrompt") if keywords else config.get("prompt", default_prompt)
-            if fpath in processed or not fname.lower().endswith(('.jpg', '.jpeg', '.png')):
+            if fpath in processed or not fname.lower().endswith(('.jpg', '.jpeg', '.png','orf')):
                 continue
             if is_file_stable(fpath, config["stabilization_interval"]):
-                desc = analyze_image(fpath, model, config["ollama_url"], prompt)
-                print(f"Processed: {fpath} -> {desc}")
-                timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
-
-                # Decide output directory
-                output_dir = config.get("output_dir", "").strip()
-                if output_dir:
-                    os.makedirs(output_dir, exist_ok=True)
-                    target_path = os.path.join(output_dir, fname)
-                    mode = config.get("output_mode", "copy").lower()
-                    if mode == "move":
-                        move(fpath, target_path)
-                    else:
-                        copy(fpath, target_path)
-                else:
-                    target_path = fpath  # default: use original location
-
-                tag_image(target_path, desc, model, timestamp, prompt, keywords)
-                publish(target_path, desc, model, prompt)
-
-                processed.add(fpath)
+               process_image(fpath)
     if args.watch or config.get("watch", False):
         while True:
             process_watch_dir_loop()
@@ -289,8 +344,7 @@ def run_main_pipeline():
         print("🚨 No mode selected. Use --input, --batch, or --watch.")
         sys.exit(1)
 if __name__ == "__main__":
-    init_from_file()
-    ollama_url = get_ollama_url("generate")
+
     # your CLI argument parsing and execution goes here
     run_main_pipeline()
 

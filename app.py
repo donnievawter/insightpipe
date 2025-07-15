@@ -8,6 +8,7 @@ import sqlite3
 import os
 import requests
 import hashlib
+import uuid
 from flask import jsonify
 from flask import session
 from insightpipe import init_from_file, get_ollama_url, getVisionModels,describe_file,keyword_file
@@ -39,7 +40,11 @@ def make_session_permanent():
     session.permanent = True
 @app.template_filter("markdown")
 def markdown_filter(text):
-    # Unescape HTML entities
+    if isinstance(text, list):
+        text = "\n".join(str(t) for t in text)
+    elif not isinstance(text, str):
+        text = str(text)
+
     unescaped = html.unescape(text)
 
     # Normalize triple backticks to start on a new line
@@ -119,16 +124,18 @@ def build_chat_payload(model, prompt, prior_messages=None, system_prompt="Respon
     return payload, messages
 
 
-def prompt_model(model, prompt, history=None, ollama_url=None, system_prompt="Respond to queries in English"):
-    payload, updated_history = build_chat_payload(
+def prompt_model(model, prompt, history=None, ollama_url=None, system_prompt="Respond to queries in English",job_id=None):
+    payload, updated_history= build_chat_payload(
         model, prompt,
         prior_messages=history,
         system_prompt=system_prompt,
         temperature=0.7
+        
     )
-   
+  
     try:
-        response = requests.post(f"{ollama_url}", json=payload, timeout=120)
+        timeout = int(os.getenv("REQUEST_TIMEOUT", "120"))
+        response = requests.post(f"{ollama_url}", json=payload, timeout=timeout)
         response.raise_for_status()
         content = response.json().get("message", {}).get("content", "").strip()
     except Exception as e:
@@ -140,7 +147,7 @@ def prompt_model(model, prompt, history=None, ollama_url=None, system_prompt="Re
         "prompt": prompt,
         "history": history if history else [],
         "response": content
-    }, updated_history
+    }, updated_history, job_id
 
 
 
@@ -235,12 +242,15 @@ def chat():
     if request.method == "GET":
         session.clear()  # 🔄 New session starts fresh
         session["system_prompt"] = request.args.get("context", "Respond to queries in English")
-    models = getVisionModels()
+    models,  preselected = getVisionModels()
     prompt_history = session.get("prompt_history", [])
     message_history = session.get("message_history", [])
     result = None
     keywords_response = None
-    describe_response = None
+    describe_response = None    
+    job_id = str(uuid.uuid4())
+    session["job_id"] = job_id
+    return_job_id = None
     if request.method == "POST":
         print("Processing POST request in chat endpoint")
         model = request.form.get("model")
@@ -266,26 +276,29 @@ def chat():
  
 
             filename_hash = hashlib.md5(image.read()).hexdigest() + "_" + image.filename
-            image_path = os.path.join("static", "uploads", filename_hash)
+            static_dir = os.path.join(os.path.dirname(__file__), "static", "uploads")
+            os.makedirs(static_dir, exist_ok=True)
+            image_path = os.path.join(static_dir, filename_hash)
             image.seek(0)  # rewind after hashing
             image.save(image_path)
             session["image_path"] = filename_hash  # Persist across messages
             print(f"Image uploaded: {image_path}")
+        
         if run_keywords and image:
             max_keywords = 10
-            resultk = keyword_file(image_path, model=active_model, max_keywords=max_keywords)
+            resultk,return_job_id  = keyword_file(image_path, model=active_model, max_keywords=max_keywords,job_id=job_id)
             print(f"Keyword result: {resultk}")
             jsonify(resultk)
             keywords_response = resultk["keywords"]
             message_history.append({
                 "role": "assistant",
-                "content": keywords_response
+                "content": "Keywords: " + ", ".join(keywords_response)
             })
             session["message_history"] = message_history
             print(f"Keywords: {resultk['keywords']}")
         if image:
             
-            resultd = describe_file(image_path,prompt=prompt or "Describe the image in detail", model=active_model)
+            resultd, return_job_id = describe_file(image_path,prompt=prompt or "Describe the image in detail", model=active_model,job_id=job_id)
             jsonify(resultd)
             print(f"Describe result: {resultd}")
             describe_response = clean_markdown(resultd["description"])
@@ -299,12 +312,14 @@ def chat():
        
             print(f"Description: {describe_response}")
         if  not image:
-            response_data, updated_history = prompt_model(
+            response_data, updated_history ,return_job_id= prompt_model(
                 model=model,
                 prompt=prompt,
                 history=message_history,
                 ollama_url=ollama_url,
-                system_prompt=system_prompt
+                system_prompt=system_prompt,
+                job_id=job_id
+
             )
             response_text = clean_markdown(response_data["response"])
             updated_history.append({
@@ -316,7 +331,7 @@ def chat():
             print(f"Raw response:\n{repr(result['response'])}")
             #print(markdown.markdown(result["response"], extensions=["fenced_code", "codehilite"])) 
             session["message_history"] = updated_history
-       
+            return_job_id = return_job_id
    
     return render_template(
         "chat.html",
@@ -325,7 +340,9 @@ def chat():
         result=result,
         locked_model=session.get("model"),
         keywords_response= keywords_response,      
-        image_path=session.get("image_path") # 🧷 Pass model to template
+        image_path=session.get("image_path"), # 🧷 Pass model to template
+        preselected=preselected,
+        return_job_id=return_job_id
     )
 
 

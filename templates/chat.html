@@ -45,9 +45,10 @@
       {% else %}
       <select name="model" id="model">
         {% for m in models %}
-        <option value="{{ m }}">{{ m }}</option>
+        <option value="{{ m }}" {% if m==preselected %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </select>
+
       {% endif %}
 
       <div class="block">
@@ -72,11 +73,16 @@
 
     <div class="image-result">
       {% if image_path %}
-      <img src="/static/uploads/{{ image_path }}" alt="Uploaded Image">
+      <img src="/static/uploads/{{ image_path }}" alt="Raw images may not display in browser, but AI analysis is complete)">
       {% endif %}
       <div class="image-meta">
         {% if result %}
-        <div class="description">{{ result.response | markdown | safe }}</div>
+          {% if result.response is string %}
+             <div class="description">{{ result.response | markdown | safe }}</div>
+           {% else %}
+              <div class="description">{{ result.response | join("\n") | markdown | safe }}</div>
+          {% endif %}
+
         {% endif %}
         {% if keywords_response %}
         <div class="keywords">
