@@ -14,6 +14,7 @@ def tag_image(path, description, model, timestamp, prompt=None, keywords=False):
     ]
 
     if keywords:
+        global keywords_list
         keywords_list = [kw.strip() for kw in description.split(",")]
         args.extend([f"-IPTC:Keywords={kw}" for kw in keywords_list])
         args.extend([f"-XMP-dc:Subject={kw}" for kw in keywords_list])
@@ -25,3 +26,4 @@ def tag_image(path, description, model, timestamp, prompt=None, keywords=False):
 
     args.append(path)
     subprocess.run(args)
+  

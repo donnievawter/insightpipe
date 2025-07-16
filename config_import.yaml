@@ -1,0 +1,13 @@
+watch_dir: "/Volumes/T54T/ready_to_process"
+model_name: "gemma3:4b"
+poll_interval: 15
+stabilization_interval: 3
+ollama_url_base: "http://crow.lan:11434"
+keywordPrompt: "What keywords would best describe this image? Provide a comma-separated list of tags that capture the main subjects, actions, and context in the image. Focus on key elements that would help in categorizing or searching for this image later. Avoid generic terms and be specific to the content shown. Provide only thes list and do not say here is the list or anything else."
+output_dir: "/Volumes/T54T/processed"
+output_mode: move  # or "move"
+keywords: true
+prompt: "Describe this image. Please use at most 100 words. Do not preface the description with any additional text."
+watch: true
+mqtt_topic: "insightpipe/imports"  # Base topic for MQTT publishing (can be overridden)
+default_model: "qwen2.5vl:3b"

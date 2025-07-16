@@ -292,10 +292,17 @@ def run_main_pipeline():
             print(f"Converting ORF to JPG: {source_path}")
             target_path = convert_orf_to_jpg(source_path)
             print(f"Converted to: {target_path}")
-        prompt = config.get("keywordPrompt") if keywords else config.get("prompt")
+        #we need to process this file once with main prompt and once with keyword prompt if keywords is true
+        timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+        if keywords:
+            prompt = config.get("keywordPrompt")
+            descKey = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
+            print(f"Processed for keywords: {target_path} -> {descKey}")
+        #now process with main prompt    
+        prompt = config.get("prompt")
         desc = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
         print(f"Processed: {target_path} -> {desc}")
-        timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+        
         if source_path != target_path and os.path.exists(target_path):
             os.remove(target_path)
 
@@ -312,9 +319,11 @@ def run_main_pipeline():
         else:
             target_path = source_path  # default: use original location
 
-        tag_image(target_path, desc, model, timestamp, prompt, keywords)
+        tag_image(target_path, desc, model, timestamp, prompt, False)
         publish(target_path, desc, model, prompt,mqtt_topic)
-
+        if keywords:
+            tag_image(target_path, descKey, model, timestamp, config.get("keywordPrompt"), True)
+            publish(target_path, descKey, model, config.get("keywordPrompt"),mqtt_topic)
         processed.add(source_path)
 
 
