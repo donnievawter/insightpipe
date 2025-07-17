@@ -14,7 +14,7 @@ from flask import session
 from insightpipe import init_from_file, get_ollama_url, getVisionModels,describe_file,keyword_file
 from dotenv import load_dotenv
 from datetime import timedelta
-
+from bs4 import BeautifulSoup
 import yaml
 app = Flask(__name__)
 
@@ -39,6 +39,8 @@ Session(app)
 def make_session_permanent():
     session.permanent = True
 @app.template_filter("markdown")
+
+
 def markdown_filter(text):
     if isinstance(text, list):
         text = "\n".join(str(t) for t in text)
@@ -46,12 +48,34 @@ def markdown_filter(text):
         text = str(text)
 
     unescaped = html.unescape(text)
+    unescaped = unescaped.replace("<p>```", "```").replace("```</p>", "```")
 
-    # Normalize triple backticks to start on a new line
-    if "```" in unescaped:
-        unescaped = unescaped.replace("<p>```", "```").replace("```</p>", "```")
+    # Render Markdown
+    raw_html = markdown.markdown(unescaped, extensions=["fenced_code", "codehilite"])
 
-    return markdown.markdown(unescaped, extensions=["fenced_code", "codehilite"])
+    # Parse HTML and wrap code blocks
+    soup = BeautifulSoup(raw_html, "html.parser")
+
+    for pre in soup.find_all("pre"):
+        wrapper = soup.new_tag("div", **{"class": "code-block-wrapper"})
+
+        copy_btn = soup.new_tag("button", **{"class": "copy-btn", "onclick": "copyCode(this)"})
+        copy_btn.string = "Copy"
+
+        save_btn = soup.new_tag("button", **{"class": "save-btn", "onclick": "saveCode(this, 'snippet.py')"})
+        save_btn.string = "Save"
+
+        # Clone the <pre> tag to avoid parenting issues
+        cloned_pre = pre.__copy__()
+        wrapper.append(copy_btn)
+        wrapper.append(save_btn)
+        wrapper.append(cloned_pre)
+
+        # Replace original <pre> with wrapper
+        pre.replace_with(wrapper)
+
+
+    return str(soup)
 
 
 load_dotenv()

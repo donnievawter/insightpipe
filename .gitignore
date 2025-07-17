@@ -12,3 +12,6 @@ results.db
 results/
 temp_batch/
 static/uploads/
+setupinstructions.md
+setupinstructions
+requirements.txt.hold

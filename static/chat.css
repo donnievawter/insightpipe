@@ -135,3 +135,19 @@ code, pre {
   max-width: 1200px;
   margin: 0 auto;
 }
+.code-block-wrapper {
+  position: relative;
+  margin-bottom: 1em;
+}
+
+.copy-btn, .save-btn {
+  margin-right: 6px;
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.copy-btn.copied {
+  background-color: #4caf50;
+  color: white;
+}

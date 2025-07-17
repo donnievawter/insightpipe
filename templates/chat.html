@@ -73,15 +73,16 @@
 
     <div class="image-result">
       {% if image_path %}
-      <img src="/static/uploads/{{ image_path }}" alt="Raw images may not display in browser, but AI analysis is complete)">
+      <img src="/static/uploads/{{ image_path }}"
+        alt="Raw images may not display in browser, but AI analysis is complete)">
       {% endif %}
       <div class="image-meta">
         {% if result %}
-          {% if result.response is string %}
-             <div class="description">{{ result.response | markdown | safe }}</div>
-           {% else %}
-              <div class="description">{{ result.response | join("\n") | markdown | safe }}</div>
-          {% endif %}
+        {% if result.response is string %}
+        <div class="description">{{ result.response | markdown | safe }}</div>
+        {% else %}
+        <div class="description">{{ result.response | join("\n") | markdown | safe }}</div>
+        {% endif %}
 
         {% endif %}
         {% if keywords_response %}
@@ -128,6 +129,48 @@
         reader.readAsDataURL(file);
       }
     });
+
+
+    function copyCode(btn) {
+      const wrapper = btn.closest(".code-block-wrapper");
+      const code = wrapper.querySelector("code");
+
+      if (code) {
+        navigator.clipboard.writeText(code.innerText)
+          .then(() => {
+            const originalText = btn.textContent;
+            btn.textContent = "✅ Copied!";
+            btn.classList.add("copied");
+            setTimeout(() => {
+              btn.textContent = originalText;
+              btn.classList.remove("copied");
+            }, 1500);
+          })
+          .catch(err => {
+            console.error("Copy failed:", err);
+            btn.textContent = "❌ Copy failed";
+            setTimeout(() => {
+              btn.textContent = "Copy";
+            }, 1500);
+          });
+      }
+    }
+
+
+
+
+    function saveCode(btn, filename = "snippet.txt") {
+      const code = btn.parentElement.querySelector("pre code").innerText;
+      const blob = new Blob([code], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+    }
+
+    btn.classList.add("copied");
+    setTimeout(() => btn.classList.remove("copied"), 1500);
+
 
   </script>
 
