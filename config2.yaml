@@ -11,3 +11,12 @@ prompt: "Describe people, animals or vehicles in this image. Do not offer to do 
 watch: true
 mqtt_topic: "insightpipe/detections"  # Base topic for MQTT publishing (can be overridden)
 default_model: "qwen2.5vl:3b"
+allowed_image_types:
+  - orf
+  - cr2
+  - nef
+  - arw
+  - dng
+  - raf
+  - sr2
+prompt_source: "assets/prompts.txt"  # Path to the prompts file

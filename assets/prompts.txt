@@ -1,0 +1,3 @@
+DEFAULT_SYSTEM_PROMPT=You are responsible for archiving and categorizing photographs for semantic retrieval. For descriptions use prose. Respond with the description only and not with prefacing remarks like Here is
+DEFAULT_KEYWORD_PROMPT=List comma-separated keywords that describe the image, focusing on visual and thematic elements. No other output. Only a comma separated list.
+DEFAULT_DESCRIPTION_PROMPT=Describe this image in detail and use complete sentences not just keywords.

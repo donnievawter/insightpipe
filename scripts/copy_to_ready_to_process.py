@@ -12,7 +12,8 @@ def copy_files(source, destination):
         raise Exception(f"Destination {destination} does not exist or is not a directory")
 
     # walk the source directory and copy all files to the root of the destination directory
-    image_extensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".orf"]
+    #image_extensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".orf"]
+    image_extensions = [ ".orf"]
     for root, dirs, files in os.walk(source):
         for filename in files:
             source_path = os.path.join(root, filename)

@@ -15,3 +15,5 @@ static/uploads/
 setupinstructions.md
 setupinstructions
 requirements.txt.hold
+assets/instruct.txt
+foo.py

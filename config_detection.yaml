@@ -3,7 +3,7 @@ model_name: "qwen2.5vl:72b"
 poll_interval: 15
 stabilization_interval: 3
 ollama_url_base: "http://crow.lan:11434"
-keywordPrompt: "What keywords would best describe this image? Provide a comma-separated list of tags that capture the main subjects, actions, and context in the image. Focus on key elements that would help in categorizing or searching for this image later. Avoid generic terms and be specific to the content shown. Provide only thes list and do not say here is the list or anything else."
+keywordPrompt: "What keywords would best describe this image? Provide only a comma separated list and do not say here is the list or anything else."
 output_dir: "/Volumes/wildlife/processed_detections"
 output_mode: move  # or "move"
 keywords: true
@@ -11,3 +11,12 @@ prompt: "Describe people, animals or vehicles in this image. Do not offer to do 
 watch: true
 mqtt_topic: "insightpipe/detections"  # Base topic for MQTT publishing (can be overridden.
 default_model: "qwen2.5vl:3b"
+allowed_image_types:
+  - orf
+  - cr2
+  - nef
+  - arw
+  - dng
+  - raf
+  - sr2
+prompt_source: "assets/detections.txt"  # Path to the prompts file
