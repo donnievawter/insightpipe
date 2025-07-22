@@ -11,7 +11,36 @@ import rawpy
 import imageio
 import tempfile
 import logging
+from enum import Enum
 
+class MoveOrCopy(Enum):
+    MOVE = "move"
+    COPY = "copy"
+
+class insightImageObject:
+    def __init__(
+        self,
+        original_file_path: str,
+        destination_file_path: str = None,
+        move_or_copy: MoveOrCopy = MoveOrCopy.COPY,
+        vision_friendly_path: str = None,
+        generated_metadata: dict = None
+    ):
+        self.original_file_path = original_file_path
+        self.destination_file_path = destination_file_path
+        self.vision_friendly_path = vision_friendly_path
+        self.move_or_copy = move_or_copy
+        self.generated_metadata = generated_metadata or {
+            "model_used": None,
+            "description": None,
+            "keywords": []
+        }
+
+    def is_raw(self) -> bool:
+        raw_exts = [".orf", ".cr2", ".nef", ".arw", ".dng", ".cr3"]
+        return any(self.original_file_path.lower().endswith(ext) for ext in raw_exts)
+
+# ...existing code...
 # Set up basic logging to a file
 logging.basicConfig(
     filename='tmp/insightpipenew.log',
@@ -56,16 +85,14 @@ def load_prompt(file_path, key):
 
 
 
-def convert_orf_to_jpg(orf_path):
-    with rawpy.imread(orf_path) as raw:
+def convert_raw_to_jpg(raw_path):
+    with rawpy.imread(raw_path) as raw:
         rgb = raw.postprocess()
 
-    # Create a temp directory (you could customize this path)
     tmp_dir = os.path.join(tempfile.gettempdir(), "insightpipe_previews")
     os.makedirs(tmp_dir, exist_ok=True)
 
-    # Use original base filename but write to temp dir
-    base_name = os.path.splitext(os.path.basename(orf_path))[0] + ".jpg"
+    base_name = os.path.splitext(os.path.basename(raw_path))[0] + ".jpg"
     jpg_path = os.path.join(tmp_dir, base_name)
 
     imageio.imwrite(jpg_path, rgb, format='JPEG')
@@ -119,7 +146,7 @@ def keyword_file(fpath, model=None,max_keywords=None,job_id=None):
     target_path = source_path
     if any(source_path.lower().endswith(f".{ext.lower()}") for ext in (_allowed_image_types or [])):
         logger.info(f"Converting RAW to JPG: {source_path}")
-        target_path = convert_orf_to_jpg(source_path)
+        target_path = convert_raw_to_jpg(source_path)
         logger.info(f"Converted to: {target_path}")
 
 
@@ -143,7 +170,7 @@ def describe_file(fpath, prompt, model=None,job_id=None):
     target_path = source_path
     if any(source_path.lower().endswith(f".{ext.lower()}") for ext in (_allowed_image_types or [])):
         print(f"Converting RAW to JPG: {source_path}")
-        target_path = convert_orf_to_jpg(source_path)
+        target_path = convert_raw_to_jpg(source_path)
         print(f"Converted to: {target_path}")
       
      
@@ -319,48 +346,61 @@ def run_main_pipeline():
         sys.exit(0)
 
     def process_image(fpath):
-        source_path = fpath
-        target_path = source_path
-        if any(source_path.lower().endswith(f".{ext.lower()}") for ext in (_allowed_image_types or [])):
-            logger.info(f"Converting RAW to JPG: {source_path}")
-            target_path = convert_orf_to_jpg(source_path)
-            logger.info(f"Converted to: {target_path}")
-        #we need to process this file once with main prompt and once with keyword prompt if keywords is true
+        # Create the image object
+        img_obj = insightImageObject(
+            original_file_path=fpath,
+            move_or_copy=MoveOrCopy(config.get("output_mode", "copy").upper()),
+        )
+
+        # Convert RAW to JPEG if needed
+        if img_obj.is_raw():
+            logger.info(f"Converting RAW to JPG: {img_obj.original_file_path}")
+            img_obj.vision_friendly_path = convert_raw_to_jpg(img_obj.original_file_path)
+            logger.info(f"Converted to: {img_obj.vision_friendly_path}")
+            target_path = img_obj.vision_friendly_path
+        else:
+            target_path = img_obj.original_file_path
+
         timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+
+        # Keyword analysis (if enabled)
         if keywords:
             prompt = system_prompt + "\n" + keyword_prompt
             descKey = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
+            img_obj.generated_metadata["keywords"] = [kw.strip() for kw in descKey.split(",")]
             logger.info(f"Processed for keywords: {target_path} -> {descKey}")
-        #now process with main prompt    
+
+        # Description analysis
         prompt = system_prompt + "\n" + description_prompt
         desc = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
+        img_obj.generated_metadata["description"] = desc.strip()
+        img_obj.generated_metadata["model_used"] = model
         logger.info(f"Processed: {target_path} -> {desc}")
-        
-        if source_path != target_path and os.path.exists(target_path):
-            os.remove(target_path)
 
-        # Decide output directory
+        # Clean up temp JPEG if RAW was converted
+        if img_obj.is_raw() and img_obj.vision_friendly_path and os.path.exists(img_obj.vision_friendly_path):
+            os.remove(img_obj.vision_friendly_path)
+
+        # Decide output directory and move/copy
         output_dir = config.get("output_dir", "").strip()
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            target_path = os.path.join(output_dir, source_path.split(os.path.sep)[-1])  # Keep original filename
-            mode = config.get("output_mode", "copy").lower()
-            if mode == "move":
-                move(source_path, target_path)
+            img_obj.destination_file_path = os.path.join(output_dir, os.path.basename(img_obj.original_file_path))
+            if img_obj.move_or_copy == MoveOrCopy.MOVE:
+                move(img_obj.original_file_path, img_obj.destination_file_path)
             else:
-                copy2(source_path, target_path)
+                copy2(img_obj.original_file_path, img_obj.destination_file_path)
         else:
-            target_path = source_path  # default: use original location
+            img_obj.destination_file_path = img_obj.original_file_path
 
-        tag_image(target_path, desc, model, timestamp, description_prompt, False)
-        publish(target_path, desc, model, description_prompt,mqtt_topic)
+        # Tag and publish
+        tag_image(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, timestamp, description_prompt, False)
+        publish(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, description_prompt, mqtt_topic)
         if keywords:
-            tag_image(target_path, descKey, model, timestamp,keyword_prompt, True)
-            publish(target_path, descKey, model, keyword_prompt,mqtt_topic)
-        processed.add(source_path)
+            tag_image(img_obj.destination_file_path, descKey, model, timestamp, keyword_prompt, True)
+            publish(img_obj.destination_file_path, descKey, model, keyword_prompt, mqtt_topic)
 
-
-
+        processed.add(img_obj.original_file_path)
       
           
    
