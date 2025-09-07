@@ -43,7 +43,7 @@ class insightImageObject:
 # ...existing code...
 # Set up basic logging to a file
 logging.basicConfig(
-    filename='tmp/insightpipenew.log',
+    filename='/tmp/insightpipenew.log',
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
@@ -70,6 +70,13 @@ def init_from_file(config_path="config.yaml"):
     _initialized = True
     global _allowed_image_types
     _allowed_image_types = _config.get("allowed_image_types", ["orf", "cr","jpg"])
+
+def parse_enum(enum_class, value, default=None):
+    try:
+        return enum_class(value.lower())
+    except ValueError:
+        return default or enum_class.COPY  # or enum_class(default)
+
 def get_ollama_url(endpoint="chat"):
     
     return f"{_ollama_url_base.rstrip('/')}/api/{endpoint}"
@@ -349,7 +356,7 @@ def run_main_pipeline():
         # Create the image object
         img_obj = insightImageObject(
             original_file_path=fpath,
-            move_or_copy=MoveOrCopy(config.get("output_mode", "copy").upper()),
+            move_or_copy = parse_enum(MoveOrCopy, config.get("output_mode", "copy")),
         )
 
         # Convert RAW to JPEG if needed
