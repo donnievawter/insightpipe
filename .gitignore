@@ -17,3 +17,6 @@ setupinstructions
 requirements.txt.hold
 assets/instruct.txt
 foo.py
+build/
+*.egg-info/
+.venv/

@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Activate the virtual environment
-source /Users/crow/projects/insightpipe/venv-insight/bin/activate
-
+#source /Users/crow/projects/insightpipe/.venv/bin/activate
+# uv manages the venv
 # Run the Python script
-python3 /Users/crow/projects/insightpipe/app.py 
+uv run /Users/crow/projects/insightpipe/app.py 
