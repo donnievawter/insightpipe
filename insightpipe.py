@@ -1,3 +1,5 @@
+import http
+from sympy import false
 import os, time, yaml, datetime
 from analyzer import analyze_image
 from publisher import publish
@@ -57,6 +59,7 @@ _initialized = False
 _allowed_image_types = []
 def init_from_file(config_path="config.yaml"):
     global _config, _model, _keyword_prompt, _ollama_url_base, _initialized, _default_model,_prompt_source
+    global _rag_api_url, _rag_k_default, _rag_enabled_default
     # Resolve config path relative to this script's directory
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), config_path)
     with open(config_path, "r") as f:
@@ -70,6 +73,9 @@ def init_from_file(config_path="config.yaml"):
     _initialized = True
     global _allowed_image_types
     _allowed_image_types = _config.get("allowed_image_types", ["orf", "cr","jpg"])
+    _rag_api_url = _config.get("rag_api_url","http://localhost:8001")    # URL of the repo RAG API
+    _rag_k_default = _config.get("rag_k_default", 5)
+    _rag_enabled_default = _config.get("rag_enabled_default", False)
 
 def parse_enum(enum_class, value, default=None):
     try:

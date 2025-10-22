@@ -16,6 +16,10 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from bs4 import BeautifulSoup
 import yaml
+from fastapi.responses import JSONResponse
+import time
+from textwrap import shorten
+import insightpipe as ip
 app = Flask(__name__)
 
 # Redis connection
@@ -111,6 +115,49 @@ def get_filter_options():
     conn.close()
     return models, prompts, filenames, timestamps
 
+
+# Config values (load from config.yaml or env)
+# rag_api_url = e.g. "http://host:8000"
+# rag_k_default = 5
+
+def fetch_repo_chunks(prompt, k=None, rag_api_url=None):
+    """Call external /query API and return a short joined context string.
+       Returns None on error or empty result.
+    """
+    k =  getattr(ip, "_rag_k_default", 5)
+    rag_api_url =  getattr(ip, "_rag_api_url", None)
+    if not rag_api_url:
+        return None
+
+    try:
+        resp = requests.post(
+            f"{rag_api_url.rstrip('/')}/query",
+            json={"prompt": prompt, "k": k},
+            timeout=6
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        results = data.get("results", [])
+        # Build a short context, sanitize and truncate each chunk.
+        parts = []
+        for r in results:
+            content = r.get("content", "")
+            # sanitize HTML/JS and shorten to, say, 800 chars per chunk
+            content = html.escape(content)
+            content = shorten(content, width=800, placeholder=" …")
+            src = r.get("metadata", {}).get("source", "unknown")
+            parts.append(f"---\nSource: {src}\n{content}\n")
+        if not parts:
+            return None
+        # join with newline and return a final heading
+        joined = "Use the following retrieved document excerpts to answer the user query (do not cite unless asked):\n\n" + "\n".join(parts)
+        # overall limit e.g. 4000 chars
+        return shorten(joined, width=4000, placeholder="\n[truncated]")
+    except Exception as e:
+        # log error and return None (do not fail chat)
+        print(f"fetch_repo_chunks error: {e}")
+        return None
+    
 def fetch_all_results():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -269,6 +316,7 @@ def chat():
     models,  preselected = getVisionModels()
     prompt_history = session.get("prompt_history", [])
     message_history = session.get("message_history", [])
+    # inside chat() POST branch, after prompt, active_model, message_history set:
     result = None
     keywords_response = None
     describe_response = None    
@@ -280,6 +328,18 @@ def chat():
         model = request.form.get("model")
         prompt = request.form.get("prompt")
         prompt = (prompt or "").strip()
+        use_repo_docs = bool(request.form.get("use_repo_docs"))
+        session["use_repo_docs"] = use_repo_docs  # persist choice in session
+        if use_repo_docs:
+            k =  getattr(ip, "_rag_k_default", 5)
+            rag_api_url =  getattr(ip, "_rag_api_url", None)
+
+            # fetch relevant chunks and inject as a system message before building payload
+            context_text = fetch_repo_chunks(prompt, k=k, rag_api_url=rag_api_url)
+            if context_text:
+                # Insert a system message containing the retrieved context at the front of prior_messages
+                message_history.insert(0, {"role": "system", "content": context_text})
+    
         # ✅ Store model only on the first turn
         if "model" not in session and model:
             session["model"] = model
@@ -375,6 +435,17 @@ def chat():
 def reset():
     session.clear()
     return redirect("/chat")
+
+
+
+
+@app.route("/health", methods=["GET"])
+def healthcheck():
+    return jsonify({
+        "status": "ok",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        
+    }), 200
 
 if __name__ == "__main__":
    app.run(host='0.0.0.0', port=5050, debug=True)

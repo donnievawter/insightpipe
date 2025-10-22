@@ -12,7 +12,10 @@ WAIT_INTERVAL=2
 #source /Users/crow/projects/insightpipe/.venv/bin/activate
 #now using uv to manage venv
 echo "$(date) — Launching InsightPipe with config_detection.yaml" >> "$LOGFILE"
-uv run  /Users/crow/projects/insightpipe/insightpipe.py \
+cd /Users/crow/projects/insightpipe 
+env >> $LOGFILE
+pwd >> $LOGFILE
+/opt/homebrew/bin/uv run  insightpipe.py \
   --config /Users/crow/projects/insightpipe/config_detection.yaml \
   --watch
 

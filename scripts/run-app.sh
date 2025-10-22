@@ -5,4 +5,4 @@
 #source /Users/crow/projects/insightpipe/.venv/bin/activate
 # uv manages the venv
 # Run the Python script
-uv run /Users/crow/projects/insightpipe/app.py 
+/opt/homebrew/bin/uv run /Users/crow/projects/insightpipe/app.py 

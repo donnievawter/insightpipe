@@ -31,13 +31,22 @@
 
 
 
-      <div id="optionsSection" style="display:none;">
+      <div id="optionsSection">
         <h4>Optional Operations:</h4>
 
         <label><input type="checkbox" name="run_keywords"> Generate Keywords for Image</label><br>
 
+        <!-- Repository RAG option: visible even when no image is selected, but disabled when an image is uploaded.
+       session.get('use_repo_docs') persists user preference on the UI. -->
+        <label>
+          <input type="checkbox" id="use_repo_docs" name="use_repo_docs" {% if session.get('use_repo_docs') %}checked{%
+            endif %} {% if image_path %}disabled{% endif %}>
+          Include repository docs (RAG)
+          <small id="use_repo_docs_note" style="margin-left:6px; color:#666;">
+            {% if image_path %}(disabled for image uploads){% endif %}
+          </small>
+        </label><br>
       </div>
-
       <label for="model">Model:</label>
       {% if locked_model %}
       <span style="font-weight: bold">{{ locked_model }}</span>
@@ -114,6 +123,30 @@
           submitBtn.disabled = true;
           submitBtn.textContent = "Sending...";
         });
+      }
+      const imageInput = document.getElementById("imageInput");
+      const useRepoCheckbox = document.getElementById("use_repo_docs");
+      const useRepoNote = document.getElementById("use_repo_docs_note");
+
+      function updateRepoCheckbox() {
+        if (!useRepoCheckbox) return;
+        const hasFile = imageInput && imageInput.files && imageInput.files.length > 0;
+        // disable and clear selection if an image is uploaded
+        useRepoCheckbox.disabled = !!hasFile;
+        if (hasFile) {
+          useRepoCheckbox.checked = false;
+          if (useRepoNote) useRepoNote.textContent = "(disabled for image uploads)";
+        } else {
+          if (useRepoNote) useRepoNote.textContent = "";
+        }
+      }
+
+      // update state on initial load (in case file selector or server-side image state exists)
+      updateRepoCheckbox();
+
+      // update when the user selects an image
+      if (imageInput) {
+        imageInput.addEventListener("change", updateRepoCheckbox);
       }
     });
     document.getElementById("imageInput").addEventListener("change", function () {

@@ -20,3 +20,6 @@ allowed_image_types:
   - raf
   - sr2
 prompt_source: "assets/prompts.txt"  # Path to the prompts file
+rag_api_url: "https://rag.hlab.cam"    # URL of the repo RAG API
+rag_k_default: 5
+rag_enabled_default: false
