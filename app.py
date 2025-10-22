@@ -196,7 +196,7 @@ def build_chat_payload(model, prompt, prior_messages=None, system_prompt="Respon
 
 
 def prompt_model(model, prompt, history=None, ollama_url=None, system_prompt="Respond to queries in English",job_id=None):
-    payload, updated_history= build_chat_payload(
+    payload, updated_history = build_chat_payload(
         model, prompt,
         prior_messages=history,
         system_prompt=system_prompt,
@@ -212,15 +212,16 @@ def prompt_model(model, prompt, history=None, ollama_url=None, system_prompt="Re
     except Exception as e:
         content = f"Error: {str(e)}"
 
+    # Return the updated history (excluding the system message which is shown separately in the UI)
+    non_system_history = [m for m in updated_history if m.get("role") != "system"]
+
     return {
         "model": model,
         "timestamp": datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S"),
         "prompt": prompt,
-        "history": history if history else [],
+        "history": non_system_history,
         "response": content
     }, updated_history, job_id
-
-
 
 
 
