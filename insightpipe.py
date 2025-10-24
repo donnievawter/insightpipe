@@ -14,7 +14,7 @@ import imageio
 import tempfile
 import logging
 from enum import Enum
-
+import requests
 class MoveOrCopy(Enum):
     MOVE = "move"
     COPY = "copy"
@@ -113,11 +113,13 @@ def convert_raw_to_jpg(raw_path):
 
 def get_available_models():
     try:
-        result = subprocess.run(["/usr/local/bin/ollama", "list"], capture_output=True, text=True, check=True)
-        lines = result.stdout.strip().split("\n")
-        models = [line.split()[0] for line in lines if line.strip()]
+        url = get_ollama_url("tags")
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        models = [model["name"] for model in data.get("models", [])]
         return models
-    except subprocess.CalledProcessError as e:
+    except requests.RequestException as e:
         print(f"[ERROR] Failed to retrieve models: {e}")
         logger.error(f"Failed to retrieve models: {e}")
         return []
