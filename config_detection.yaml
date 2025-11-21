@@ -1,10 +1,10 @@
-watch_dir: "/Volumes/wildlife"  # Directory to watch for new images
+watch_dir: "/Users/crow/mnt/wildlife"  # Directory to watch for new images
 model_name: "qwen2.5vl:72b"
 poll_interval: 15
 stabilization_interval: 3
 ollama_url_base: "http://crow.lan:11434"
 keywordPrompt: "What keywords would best describe this image? Provide only a comma separated list and do not say here is the list or anything else."
-output_dir: "/Volumes/wildlife/processed_detections"
+output_dir: "/Users/crow/mnt/wildlife/processed_detections"
 output_mode: move  # or "move"
 keywords: true
 prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."

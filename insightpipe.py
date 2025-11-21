@@ -397,17 +397,23 @@ def run_main_pipeline():
             os.remove(img_obj.vision_friendly_path)
 
         # Decide output directory and move/copy
-        output_dir = config.get("output_dir", "").strip()
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-            img_obj.destination_file_path = os.path.join(output_dir, os.path.basename(img_obj.original_file_path))
-            if img_obj.move_or_copy == MoveOrCopy.MOVE:
-                move(img_obj.original_file_path, img_obj.destination_file_path)
+        try:
+            output_dir = config.get("output_dir", "").strip()
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                img_obj.destination_file_path = os.path.join(output_dir, os.path.basename(img_obj.original_file_path))
+                if img_obj.move_or_copy == MoveOrCopy.MOVE:
+                    move(img_obj.original_file_path, img_obj.destination_file_path)
+                else:
+                    copy2(img_obj.original_file_path, img_obj.destination_file_path)
             else:
-                copy2(img_obj.original_file_path, img_obj.destination_file_path)
-        else:
+                img_obj.destination_file_path = img_obj.original_file_path
+        except Exception as e:
+            logger.error(f"Error moving/copying file {img_obj.original_file_path}: {e}")
             img_obj.destination_file_path = img_obj.original_file_path
 
+
+     
         # Tag and publish
         tag_image(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, timestamp, description_prompt, False)
         publish(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, description_prompt, mqtt_topic)
