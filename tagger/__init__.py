@@ -6,7 +6,7 @@ def tag_image(path, description, model, timestamp, prompt=None, keywords=False):
         raise FileNotFoundError(f"File not found: {path}")
     
     args = [
-        "/usr/local/bin/exiftool",
+        "/usr/bin/exiftool",
         "-Headline=InsightPipe Inference",
         f"-IPTC:Writer-Editor={model}",
         f"-DateTimeOriginal={timestamp}",

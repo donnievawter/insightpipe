@@ -12,7 +12,7 @@ def analyze_image(path, model, url,  prompt="What do you see in this image?",ret
         "images": [encoded],
         "stream": False
     }
-
+    print(f"🔵 Sending request to {url} with model {model}")
     for attempt in range(1, retries + 1):
         try:
             response = requests.post(url, json=payload, timeout=timeout)

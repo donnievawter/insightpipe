@@ -1,0 +1,20 @@
+[Unit]
+Description=InsightPipe Detection Service
+After=network.target
+
+[Service]
+Type=simple
+User=proxdoc
+Group=proxdoc
+WorkingDirectory=/opt/dockerapps/insightpipe
+ExecStart=/bin/bash /opt/dockerapps/insightpipe/scripts/start-insightpipe-detection.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (add as needed)
+# Environment="VARIABLE_NAME=value"
+
+[Install]
+WantedBy=multi-user.target

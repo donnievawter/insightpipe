@@ -44,8 +44,9 @@ class insightImageObject:
 
 # ...existing code...
 # Set up basic logging to a file
+log_file = os.environ.get('INSIGHTPIPE_LOGFILE', '/tmp/insightpipenew.log')
 logging.basicConfig(
-    filename='/tmp/insightpipenew.log',
+    filename=log_file,
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
@@ -291,6 +292,7 @@ def run_main_pipeline():
     logger.info(f"[SYSTEM PROMPT]: {system_prompt}")
     logger.info(f"[KEYWORD PROMPT]: {keyword_prompt}")
     logger.info(f"[DESCRIPTION PROMPT]: {description_prompt}")
+    logger.info(f"[WATCH DIR]: {config['watch_dir']}")
     keywords=config["keywords"]
     mqtt_topic = config.get("mqtt_topic", "insightpipe")  # Default topic if not set in config
 
@@ -366,7 +368,7 @@ def run_main_pipeline():
             original_file_path=fpath,
             move_or_copy = parse_enum(MoveOrCopy, config.get("output_mode", "copy")),
         )
-
+        logger.info(f"Processing file: {img_obj.original_file_path} ")
         # Convert RAW to JPEG if needed
         if img_obj.is_raw():
             logger.info(f"Converting RAW to JPG: {img_obj.original_file_path}")
@@ -375,7 +377,8 @@ def run_main_pipeline():
             target_path = img_obj.vision_friendly_path
         else:
             target_path = img_obj.original_file_path
-
+        logger.info(f"Using target path for analysis: {target_path}")
+        # Current timestamp for tagging
         timestamp = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
         # Keyword analysis (if enabled)
@@ -387,7 +390,9 @@ def run_main_pipeline():
 
         # Description analysis
         prompt = system_prompt + "\n" + description_prompt
+        logger.info(f"Analyzing for description with prompt: {prompt}")
         desc = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
+        logger.info(f"Description analysis result: {desc}")
         img_obj.generated_metadata["description"] = desc.strip()
         img_obj.generated_metadata["model_used"] = model
         logger.info(f"Processed: {target_path} -> {desc}")
@@ -430,7 +435,7 @@ def run_main_pipeline():
         _not_raw = ['.jpg', '.jpeg', '.png', '.tif', '.tiff']
         global _allowed_image_types
         image_extensions = list(set(_allowed_image_types or []).union(set(_not_raw)))
-        
+        logger.info("Scanning watch directory for new files...")
         for fname in os.listdir(config["watch_dir"]):
             fpath = os.path.join(config["watch_dir"], fname)
             logger.info(f"Checking file: {fpath}")
@@ -439,6 +444,7 @@ def run_main_pipeline():
             keywords = config.get("keywords", False)
             prompt = keyword_prompt if keywords else description_prompt
             if fpath in processed or not any(fpath.lower().endswith(ext) for ext in image_extensions):
+                logger.info(f"Skipping : {fpath}")
                 continue
             if is_file_stable(fpath, config["stabilization_interval"]):
                process_image(fpath)

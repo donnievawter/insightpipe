@@ -1,0 +1,21 @@
+[Unit]
+Description=InsightPipe Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=proxdoc
+Group=proxdoc
+WorkingDirectory=/opt/dockerapps/insightpipe
+ExecStart=/bin/bash /opt/dockerapps/insightpipe/scripts/start-app.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (add as needed)
+# Environment="FLASK_ENV=production"
+# Environment="VARIABLE_NAME=value"
+
+[Install]
+WantedBy=multi-user.target
