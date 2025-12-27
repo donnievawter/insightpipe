@@ -115,9 +115,11 @@ def convert_raw_to_jpg(raw_path):
 def get_available_models():
     try:
         url = get_ollama_url("tags")
+        print(f"Fetching available models from: {url}")
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
+        print(f"Received model data: {data}")
         models = [model["name"] for model in data.get("models", [])]
         return models
     except requests.RequestException as e:

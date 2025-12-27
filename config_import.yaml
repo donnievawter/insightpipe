@@ -1,8 +1,9 @@
 watch_dir: "/opt/dockerapps/insightpipe/ready_to_process"
-model_name: "gemma3:4b"
+model_name: "zai-org/glm-4.6v-flash"
 poll_interval: 15
 stabilization_interval: 3
-ollama_url_base: "http://crow.lan:11434"
+#ollama_url_base: "http://crow.lan:11434"
+ollama_url_base: "https://ollamatoopenai.hlab.cam"
 keywordPrompt: "What keywords would best describe this image? Provide a comma-separated list of tags that capture the main subjects, actions, and context in the image. Focus on key elements that would help in categorizing or searching for this image later. Avoid generic terms and be specific to the content shown. Provide only thes list and do not say here is the list or anything else."
 output_dir: "/opt/dockerapps/insightpipe/processed"
 output_mode: move  # or "move"
