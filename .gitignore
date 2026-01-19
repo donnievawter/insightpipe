@@ -20,3 +20,5 @@ foo.py
 build/
 *.egg-info/
 .venv/
+processed/FCACheck.jpg
+processed/FCACheck.jpg

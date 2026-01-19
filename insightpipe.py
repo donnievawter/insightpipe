@@ -226,6 +226,7 @@ def describe_file(fpath, prompt, model=None,job_id=None):
 
 
 def run_main_pipeline():
+    from publisher import test_mqtt_connection
 
     # Parse CLI arguments
     parser = argparse.ArgumentParser(
@@ -300,6 +301,7 @@ def run_main_pipeline():
 
     def validate_runtime(config, dry_run=False):
         errors = []
+        warnings = []
 
         # Check model availability
         model_name = config.get("model_name")
@@ -320,10 +322,27 @@ def run_main_pipeline():
         if not topic or "/" not in topic:
             errors.append(f"MQTT topic '{topic}' is malformed or missing a slash.")
 
+        # Test MQTT connection
+        logger.info("Testing MQTT connection...")
+        mqtt_success, mqtt_error = test_mqtt_connection()
+        if not mqtt_success:
+            warnings.append(f"MQTT connection test failed: {mqtt_error}")
+            logger.warning(f"⚠️ MQTT is not available - messages will not be published")
+            logger.warning(f"   Error: {mqtt_error}")
+        else:
+            logger.info("✅ MQTT connection verified successfully")
+
         # Check paths
         watch_dir = config.get("watch_dir")
         if not os.path.exists(watch_dir):
             errors.append(f"Watch directory '{watch_dir}' does not exist.")
+
+        # Report warnings
+        if warnings and not dry_run:
+            print("[WARNINGS]")
+            for warn in warnings:
+                print(f"  ⚠️  {warn}")
+            print()
 
         # Report and bail if errors
         if errors:
@@ -423,10 +442,17 @@ def run_main_pipeline():
      
         # Tag and publish
         tag_image(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, timestamp, description_prompt, False)
-        publish(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, description_prompt, mqtt_topic)
+        try:
+            publish(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, description_prompt, mqtt_topic)
+        except Exception as e:
+            logger.error(f"Failed to publish description to MQTT: {e}")
+        
         if keywords:
             tag_image(img_obj.destination_file_path, descKey, model, timestamp, keyword_prompt, True)
-            publish(img_obj.destination_file_path, descKey, model, keyword_prompt, mqtt_topic)
+            try:
+                publish(img_obj.destination_file_path, descKey, model, keyword_prompt, mqtt_topic)
+            except Exception as e:
+                logger.error(f"Failed to publish keywords to MQTT: {e}")
 
         processed.add(img_obj.original_file_path)
       
