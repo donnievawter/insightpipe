@@ -449,11 +449,11 @@ def run_main_pipeline():
         
         if keywords:
             tag_image(img_obj.destination_file_path, descKey, model, timestamp, keyword_prompt, True)
-            try:
-                publish(img_obj.destination_file_path, descKey, model, keyword_prompt, mqtt_topic)
-            except Exception as e:
-                logger.error(f"Failed to publish keywords to MQTT: {e}")
-
+            # try:
+            #     publish(img_obj.destination_file_path, descKey, model, keyword_prompt, mqtt_topic)
+            # except Exception as e:
+            #     logger.error(f"Failed to publish keywords to MQTT: {e}")
+       
         processed.add(img_obj.original_file_path)
       
           
