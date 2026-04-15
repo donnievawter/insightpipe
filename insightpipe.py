@@ -1,6 +1,6 @@
 import http
 from sympy import false
-import os, time, yaml, datetime
+import os, time, yaml, datetime, errno
 from analyzer import analyze_image
 from publisher import publish
 from utils import is_file_stable
@@ -464,7 +464,17 @@ def run_main_pipeline():
         global _allowed_image_types
         image_extensions = list(set(_allowed_image_types or []).union(set(_not_raw)))
         logger.info("Scanning watch directory for new files...")
-        for fname in os.listdir(config["watch_dir"]):
+        
+        try:
+            files = os.listdir(config["watch_dir"])
+        except OSError as e:
+            if e.errno == errno.ESTALE:
+                logger.error(f"Stale file handle on {config['watch_dir']} - filesystem may need remount. Skipping this iteration.")
+                return
+            else:
+                raise
+        
+        for fname in files:
             fpath = os.path.join(config["watch_dir"], fname)
             logger.info(f"Checking file: {fpath}")
            
