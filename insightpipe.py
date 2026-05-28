@@ -101,7 +101,12 @@ def load_prompt(file_path, key):
 
 def convert_raw_to_jpg(raw_path):
     with rawpy.imread(raw_path) as raw:
-        rgb = raw.postprocess()
+        rgb = raw.postprocess(
+            use_camera_wb=True,           # Use camera's white balance
+            output_color=rawpy.ColorSpace.sRGB,  # Proper sRGB color space
+            no_auto_bright=False,         # Allow auto brightness adjustment
+            gamma=(2.222, 4.5)           # Standard sRGB gamma curve
+        )
 
     tmp_dir = os.path.join(tempfile.gettempdir(), "insightpipe_previews")
     os.makedirs(tmp_dir, exist_ok=True)

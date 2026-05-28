@@ -4,7 +4,12 @@ import os
 
 def convert_orf_to_jpg(orf_path):
     with rawpy.imread(orf_path) as raw:
-        rgb = raw.postprocess()
+        rgb = raw.postprocess(
+            use_camera_wb=True,           # Use camera's white balance
+            output_color=rawpy.ColorSpace.sRGB,  # Proper sRGB color space
+            no_auto_bright=False,         # Allow auto brightness adjustment
+            gamma=(2.222, 4.5)           # Standard sRGB gamma curve
+        )
     jpg_path = os.path.splitext(orf_path)[0] + ".jpg"
     imageio.imwrite(jpg_path, rgb, format='JPEG')
     return jpg_path
