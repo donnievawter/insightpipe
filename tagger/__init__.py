@@ -17,6 +17,7 @@ def tag_image(path, model, timestamp, description=None, keywords=None, title=Non
     
     args = [
         "/usr/bin/exiftool",
+        "-m",  # Ignore minor errors (e.g., DNG preview issues)
         "-Headline=InsightPipe Inference",
         f"-IPTC:Writer-Editor={model}",
         f"-DateTimeOriginal={timestamp}",
