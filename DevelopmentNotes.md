@@ -37,7 +37,7 @@ This redundancy ensures that keywords remain accessible regardless of platform q
 
 #### Description Mode (`keywords=False`)
 - Longform description stored in `XMP-dc:Description`
-- Prompt stored in `XMP-dc:Title` for contextual reference
+- Prompt is NOT stored in metadata (to avoid display issues on external sites like SmugMug)
 
 #### Both Modes
 - InsightPipe Inference stored in `Headline`

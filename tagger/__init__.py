@@ -21,8 +21,7 @@ def tag_image(path, description, model, timestamp, prompt=None, keywords=False):
         # Intentionally skip storing the prompt (it's `keywordprompt`, not useful)
     else:
         args.append(f"-Description={description}")
-        if prompt:
-            args.append(f"-XMP-dc:Title={prompt}")
+        # Prompt is no longer stored in metadata to avoid display issues on external sites
 
     args.append(path)
     subprocess.run(args)
