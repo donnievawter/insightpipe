@@ -37,11 +37,31 @@ This redundancy ensures that keywords remain accessible regardless of platform q
 
 #### Description Mode (`keywords=False`)
 - Longform description stored in `XMP-dc:Description`
+- AI-generated title (3-7 words) stored in `XMP-dc:Title`
 - Prompt is NOT stored in metadata (to avoid display issues on external sites like SmugMug)
 
 #### Both Modes
 - InsightPipe Inference stored in `Headline`
 - Model stored in `IPTC:Writer-Editor`
+
+### 🎨 AI-Generated Titles (v2.0)
+
+Starting in v2.0, InsightPipe generates a short, descriptive title for each image using a separate LLM call. This feature is controlled by the `generate_title` config option:
+
+```yaml
+generate_title: true  # Enable AI-generated titles (default: true)
+```
+
+When enabled (default), the title is:
+
+- Generated via the `DEFAULT_TITLE_PROMPT` (3-7 words)
+- Stored in `XMP-dc:Title` metadata field
+- Created specifically for display on external sites (SmugMug, galleries, etc.)
+- Independent from the description and keyword generation steps
+
+**Note**: Title generation adds an extra LLM call per image. If generated titles are not useful, set `generate_title: false` in your config to disable.
+
+This replaces the previous behavior of storing the prompt in the Title field.
 
 
 This structure avoids misuse of `UserComment`, preserves clarity, and maximizes metadata utility across search engines, image managers, and future InsightPipe extensions.

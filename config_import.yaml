@@ -8,6 +8,7 @@ keywordPrompt: "What keywords would best describe this image? Provide a comma-se
 output_dir: "/opt/dockerapps/insightpipe/processed"
 output_mode: move  # or "move"
 keywords: true
+generate_title: true  # Enable AI-generated titles (3-7 words)
 prompt: "Describe this image. Please use at most 100 words. Do not preface the description with any additional text."
 watch: true
 mqtt_topic: "insightpipe/imports"  # Base topic for MQTT publishing (can be overridden)

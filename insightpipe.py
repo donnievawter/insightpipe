@@ -35,7 +35,8 @@ class insightImageObject:
         self.generated_metadata = generated_metadata or {
             "model_used": None,
             "description": None,
-            "keywords": []
+            "keywords": [],
+            "title": None
         }
 
     def is_raw(self) -> bool:
@@ -59,7 +60,7 @@ _ollama_url_base = None
 _initialized = False
 _allowed_image_types = []
 def init_from_file(config_path="config.yaml"):
-    global _config, _model, _keyword_prompt, _ollama_url_base, _initialized, _default_model,_prompt_source
+    global _config, _model, _keyword_prompt, _title_prompt, _ollama_url_base, _initialized, _default_model,_prompt_source
     global _rag_api_url, _rag_k_default, _rag_enabled_default
     # Resolve config path relative to this script's directory
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), config_path)
@@ -290,16 +291,18 @@ def run_main_pipeline():
         print("⚠️ Conflicting flags: both --watch and --batch passed. Defaulting to watch mode.")
 
     model=config["model_name"]
-    global system_prompt, keyword_prompt, description_prompt
+    global system_prompt, keyword_prompt, description_prompt, title_prompt
     ps=config.get("prompt_source","assets/prompts.txt")
     ps=os.path.join(os.path.dirname(os.path.abspath(__file__)), ps)
     system_prompt= load_prompt(ps, "DEFAULT_SYSTEM_PROMPT")
     keyword_prompt= load_prompt(ps, "DEFAULT_KEYWORD_PROMPT")
     description_prompt= load_prompt( ps, "DEFAULT_DESCRIPTION_PROMPT")
+    title_prompt= load_prompt(ps, "DEFAULT_TITLE_PROMPT")
     logger.info(f"[PROMPT SOURCE]: {ps}")
     logger.info(f"[SYSTEM PROMPT]: {system_prompt}")
     logger.info(f"[KEYWORD PROMPT]: {keyword_prompt}")
     logger.info(f"[DESCRIPTION PROMPT]: {description_prompt}")
+    logger.info(f"[TITLE PROMPT]: {title_prompt}")
     logger.info(f"[WATCH DIR]: {config['watch_dir']}")
     keywords=config["keywords"]
     mqtt_topic = config.get("mqtt_topic", "insightpipe")  # Default topic if not set in config
@@ -423,6 +426,17 @@ def run_main_pipeline():
         img_obj.generated_metadata["model_used"] = model
         logger.info(f"Processed: {target_path} -> {desc}")
 
+        # Title generation (if enabled)
+        if config.get("generate_title", True):  # Default to True
+            prompt = system_prompt + "\n" + title_prompt
+            logger.info(f"Generating title with prompt: {prompt}")
+            title = analyze_image(target_path, model, get_ollama_url("generate"), prompt)
+            logger.info(f"Title generation result: {title}")
+            img_obj.generated_metadata["title"] = title.strip()
+            logger.info(f"Generated title: {target_path} -> {title}")
+        else:
+            logger.info("Title generation disabled in config")
+
         # Clean up temp JPEG if RAW was converted
         if img_obj.is_raw() and img_obj.vision_friendly_path and os.path.exists(img_obj.vision_friendly_path):
             os.remove(img_obj.vision_friendly_path)
@@ -445,19 +459,21 @@ def run_main_pipeline():
 
 
      
-        # Tag and publish
-        tag_image(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, timestamp, description_prompt, False)
+        # Tag with all metadata in a single exiftool call
+        tag_image(
+            path=img_obj.destination_file_path,
+            model=model,
+            timestamp=timestamp,
+            description=img_obj.generated_metadata["description"],
+            keywords=img_obj.generated_metadata["keywords"] if keywords else None,
+            title=img_obj.generated_metadata["title"]
+        )
+        
+        # Publish description to MQTT
         try:
             publish(img_obj.destination_file_path, img_obj.generated_metadata["description"], model, description_prompt, mqtt_topic)
         except Exception as e:
             logger.error(f"Failed to publish description to MQTT: {e}")
-        
-        if keywords:
-            tag_image(img_obj.destination_file_path, descKey, model, timestamp, keyword_prompt, True)
-            # try:
-            #     publish(img_obj.destination_file_path, descKey, model, keyword_prompt, mqtt_topic)
-            # except Exception as e:
-            #     logger.error(f"Failed to publish keywords to MQTT: {e}")
        
         processed.add(img_obj.original_file_path)
       

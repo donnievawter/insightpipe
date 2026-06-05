@@ -7,6 +7,7 @@ keywordPrompt: "What keywords would best describe this image? Provide a comma-se
 output_dir: "assets/test_images/processed"
 output_mode: copy  # or "move"
 keywords: true
+generate_title: true  # Enable AI-generated titles (3-7 words)
 prompt: "Describe people, animals or vehicles in this image. Do not offer to do anything else."
 watch: false
 mqtt_topic: "insightpipe/testimages"  # Base topic for MQTT publishing (can be overridden)
